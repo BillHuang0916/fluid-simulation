@@ -2,14 +2,14 @@ let gl;
 let myShader;
 let velocity;
 let mouseHeld = false
-let mousePos = [0, 0];
-let prevMousePos = [0, 0];
+let mousePos = null;
+let prevMousePos = null;
 const width = 1280;
 const height = 720;
 const texelWidth = 1.0 / width;
 const texelHeight = 1.0 / height;
-const dt = 0.0001;
-const forceAmplifier = 100;
+const dt = 0.01;
+const forceAmplifier = 3;
 const forceOffset = 0.5;
 
 
@@ -33,6 +33,8 @@ document.addEventListener("mousedown", e => {
 })
 document.addEventListener("mouseup", e => {
     mouseHeld = false
+    mousePos = null;
+    prevMousePos = null;
 })
 document.addEventListener("mousemove", e => {
     if (mouseHeld) {
@@ -44,6 +46,7 @@ document.addEventListener("mousemove", e => {
 
 function preload() {
     // load each shader file (don"t worry, we will come back to these!)
+    initialShader = loadShader("static/webgl/shader.vert", "static/webgl/initial.frag")
     fieldShader = loadShader("static/webgl/shader.vert", "static/webgl/mouse.frag");
     advectionShader = loadShader("static/webgl/shader.vert", "static/webgl/advection.frag");
     colorShader = loadShader("static/webgl/shader.vert", "static/webgl/color.frag");
@@ -59,6 +62,8 @@ function setup() {
         return;
     }
     velocity = createGraphics(width, height, WEBGL);
+    velocity.shader(initialShader);
+    velocity.rect(0, 0, width, height);
     describe("Vector field for stable fluids")
 }
 
@@ -85,7 +90,10 @@ function draw() {
 }
 
 function getForce() {
-    xForce = clamp(forceAmplifier * (mousePos[0] - prevMousePos[0]), 0.0, 1.0);
-    yForce = clamp(forceAmplifier * (mousePos[1] - prevMousePos[1]), 0.0, 1.0);
+    if(prevMousePos == null) {
+        return [0.0, 0.0];
+    }
+    xForce = forceAmplifier * (mousePos[0] - prevMousePos[0]);
+    yForce = forceAmplifier * (mousePos[1] - prevMousePos[1]);
     return [xForce, yForce];
 }

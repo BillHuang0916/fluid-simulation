@@ -1,6 +1,8 @@
 let gl;
 let myShader;
+let divergence;
 let velocity;
+let pressure;
 let mouseHeld = false
 let mousePos = null;
 let prevMousePos = null;
@@ -11,6 +13,7 @@ const texelHeight = 1.0 / height;
 const dt = 0.01;
 const forceAmplifier = 3;
 const forceOffset = 0.5;
+const PRESSURE_STEPS = 10;
 
 
 function clamp(x, min, max) {
@@ -47,9 +50,15 @@ document.addEventListener("mousemove", e => {
 function preload() {
     // load each shader file (don"t worry, we will come back to these!)
     initialShader = loadShader("static/webgl/shader.vert", "static/webgl/initial.frag")
+    initialPressureShader = loadShader("static/webgl/shader.vert", "static/webgl/initialPressure.frag")
+    initialDivergenceShader = loadShader("static/webgl/shader.vert", "static/webgl/initialDivergence.frag")
     fieldShader = loadShader("static/webgl/shader.vert", "static/webgl/mouse.frag");
+    divergenceShader = loadShader("static/webgl/shader.vert", "static/webgl/divergence.frag");
+    pressureShader = loadShader("static/webgl/shader.vert", "static/webgl/pressure.frag");
+    velocityShader = loadShader("static/webgl/shader.vert", "static/webgl/divergence.frag");
     advectionShader = loadShader("static/webgl/shader.vert", "static/webgl/advection.frag");
     colorShader = loadShader("static/webgl/shader.vert", "static/webgl/color.frag");
+    colorPressureShader = loadShader("static/webgl/shader.vert", "static/webgl/colorPressure.frag");
 }
 
 function setup() {
@@ -62,8 +71,19 @@ function setup() {
         return;
     }
     velocity = createGraphics(width, height, WEBGL);
+    pressure = createGraphics(width, height, WEBGL);
+    divergence = createGraphics(width, height, WEBGL);
     velocity.shader(initialShader);
+    initialShader.setUniform("v", [0.5, 0.5, 0.0, 1.0]);
     velocity.rect(0, 0, width, height);
+
+    pressure.shader(initialPressureShader);
+    initialPressureShader.setUniform("v", [0.5, 0.0, 0.0, 1.0]);
+    pressure.rect(0, 0, width, height);
+
+    divergence.shader(initialDivergenceShader);
+    initialDivergenceShader.setUniform("v", [0.5, 0.0, 0.0, 1.0]);
+    divergence.rect(0, 0, width, height);
     describe("Vector field for stable fluids")
 }
 
@@ -75,6 +95,33 @@ function draw() {
         fieldShader.setUniform("force", getForce());
         velocity.rect(0, 0, width, height);
     }
+    
+    divergence.shader(divergenceShader);
+    divergenceShader.setUniform("velocity", velocity);
+    divergenceShader.setUniform("t_size", [texelWidth, texelHeight]);
+    divergence.rect(0, 0, width, height);
+
+    // Create initial guess of 0
+    pressure.shader(initialPressureShader);
+    initialPressureShader.setUniform("v", [0.5, 0.0, 0.0, 1.0]);
+    pressure.rect(0, 0, width, height);
+
+    for (let i = 0; i < PRESSURE_STEPS; i++) {
+        pressure.shader(pressureShader);
+        pressureShader.setUniform("pressure", pressure);
+        pressureShader.setUniform("divergence", divergence);
+        pressureShader.setUniform("t_size", [texelWidth, texelHeight]);
+        pressureShader.setUniform("dt", dt);
+        pressure.rect(0, 0, width, height);
+    }
+
+    velocity.shader(velocityShader);
+    velocityShader.setUniform("velocity", velocity);
+    velocityShader.setUniform("pressure", pressure);
+    velocityShader.setUniform("t_size", [texelWidth, texelHeight]);
+    velocityShader.setUniform("dt", dt);
+    velocity.rect(0, 0, width, height);
+
     velocity.shader(advectionShader);
     advectionShader.setUniform("velocity", velocity);
     advectionShader.setUniform("c_size", [width, height]);
@@ -87,10 +134,16 @@ function draw() {
     colorShader.setUniform("c_size", [width, height]);
     colorShader.setUniform("t_size", [texelWidth, texelHeight]);
     rect(0, 0, width, height);
+
+    // shader(colorPressureShader)
+    // colorPressureShader.setUniform("pressure", pressure);
+    // colorPressureShader.setUniform("c_size", [width, height]);
+    // colorPressureShader.setUniform("t_size", [texelWidth, texelHeight]);
+    // rect(0, 0, width, height);
 }
 
 function getForce() {
-    if(prevMousePos == null) {
+    if (prevMousePos == null) {
         return [0.0, 0.0];
     }
     xForce = forceAmplifier * (mousePos[0] - prevMousePos[0]);

@@ -35,5 +35,7 @@ void main() {
   //vec2 color = bilerp(velocity, v_uv).xy;
   vec2 vel = decode(texture2D(velocity, v_uv)).xy;
   float color = length(vel);
+  //float color = vel.x;
+  //float color = texture2D(velocity, v_uv).x;
   gl_FragColor = vec4(0.0, color, 0.0, 1.0);
 }

@@ -10,8 +10,8 @@ const width = 1280;
 const height = 720;
 const texelWidth = 1.0 / width;
 const texelHeight = 1.0 / height;
-const dt = 0.01;
-const forceAmplifier = 3;
+const dt = 0.0005;
+const forceAmplifier = 100;
 const forceOffset = 0.5;
 const PRESSURE_STEPS = 10;
 
@@ -78,7 +78,7 @@ function setup() {
     velocity.rect(0, 0, width, height);
 
     pressure.shader(initialPressureShader);
-    initialPressureShader.setUniform("v", [0.5, 0.0, 0.0, 1.0]);
+    initialPressureShader.setUniform("v", [0.7, 0.0, 0.0, 1.0]);
     pressure.rect(0, 0, width, height);
 
     divergence.shader(initialDivergenceShader);
@@ -97,11 +97,12 @@ function draw() {
     }
     
     divergence.shader(divergenceShader);
+    divergenceShader.setUniform("dt", dt);
     divergenceShader.setUniform("velocity", velocity);
     divergenceShader.setUniform("t_size", [texelWidth, texelHeight]);
     divergence.rect(0, 0, width, height);
 
-    // Create initial guess of 0
+    //Create initial guess of 0
     pressure.shader(initialPressureShader);
     initialPressureShader.setUniform("v", [0.5, 0.0, 0.0, 1.0]);
     pressure.rect(0, 0, width, height);

@@ -7,12 +7,18 @@ uniform vec2 t_size;
 uniform sampler2D velocity;
 
 float sigmoid(float x) {
-  return 1.0 / (1.0 + exp(-x));
+  if(x >= 0.0) {
+    return 1.0 / (1.0 + exp(-x));
+  } 
+  return exp(x) / (exp(x) + 1.0);
 }
 
 float logit(float x) {
+  if(x == 0.0) {
+    return 1e-5;
+  }
   if(x == 1.0) {
-    return 0.0;
+    return 1.0 - 1e-5;
   }
   return log(x / (1.0 - x));
 }
@@ -32,10 +38,11 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 }
 
 void main() {
-  //vec2 color = bilerp(velocity, v_uv).xy;
-  vec2 vel = decode(texture2D(velocity, v_uv)).xy;
+  vec2 vel = bilerp(velocity, v_uv).xy;
+  //vec2 vel = decode(texture2D(velocity, v_uv)).xy;
   float color = length(vel);
   //float color = vel.x;
   //float color = texture2D(velocity, v_uv).x;
+  
   gl_FragColor = vec4(0.0, color, 0.0, 1.0);
 }

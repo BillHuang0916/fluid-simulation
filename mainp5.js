@@ -1,4 +1,4 @@
-let grid = new Array(200);
+let grid = new Array(10);
 
 class GridCell{
 	constructor(position, velocity, color){
@@ -8,7 +8,7 @@ class GridCell{
 	}
 }
 
-let particles = new Array(200);
+let particles = new Array(10);
 
 function positiveMod(m, n){
 	return ((m%n)+n)%n;
@@ -23,29 +23,33 @@ class Particle{
 function setup(){
 	createCanvas(200,200);
 
-	for (var i = 0; i < 200; i++){
-	grid[i] = new Array(200);
+	for (var i = 0; i < 10; i++){
+	grid[i] = new Array(10);
 	}
 
 	//DEFINE VELOCITY GRID HERE
-	for (var i = 0; i < 200; i++){
-		for (var j = 0; j < 200; j++){
-			if (j < 100){
-				grid[i][j] = new GridCell([i,j], [1,-2], color(255));
-			} 
-			else{
-				grid[i][j] = new GridCell([i,j], [-1,-1], color(255));
-			}
-			if (i%50 < 25){
-				grid[i][j].color = color(0);
-				//console.log(i);
-			}
+	for (var i = 0; i < 10; i++){
+		for (var j = 0; j < 10; j++){
+			grid[i][j] = new GridCell([i,j], [1,-2], color(255));
+			// if (j < 5){
+			// 	grid[i][j] = new GridCell([i,j], [1,-2], color(255));
+			// } 
+			// else{
+			// 	grid[i][j] = new GridCell([i,j], [-1,-1], color(255));
+			// }
+			// if (i%50 < 25){
+			// 	grid[i][j].color = color(0);
+			// 	//console.log(i);
+			// }
 		}
 	}
+
+	grid[5][5] = new GridCell([i,j], [1,-2], color(255, 0, 0));
+
 	
-	for (var i = 0; i < 200; i++){
-	particles[i] = new Particle([math.random()*200, math.random()*200]);
-	}
+	// for (var i = 0; i < 200; i++){
+	// 	particles[i] = new Particle([math.random()*200, math.random()*200]);
+	// }
 }
 
 function mouseClicked(){
@@ -63,23 +67,27 @@ function mouseClicked(){
 }
 
 function draw() {
-  gridCopy = new Array(200);
-  for (var i = 0; i < 200; i++){
+  gridCopy = new Array(10);
+  for (var i = 0; i < 10; i++){
   	gridCopy[i] = grid[i].slice(0);
   }
-  for (var i = 0; i < 200; i++){
-  	for (var j = 0; j < 200; j++){
+  for (var i = 0; i < 10; i++){
+  	for (var j = 0; j < 10; j++){
   		cell = grid[i][j];
-  		set(cell.position[0], cell.position[1], cell.color);
+		for(let x = i * 20; x < (i + 1) * 20; x++) {
+			for(let y = j * 20 ; j < (i + 1) * 20; j++) {
+				set(cell.position[0] + x, cell.position[1] + y, cell.color);
+			}
+		}
   		//console.log(cell);
   		//fill(cell.color);
   		//noStroke();
   		//rect(cell.position[0], cell.position[1], 1, 1);
 
-  		xVel = deltaTime * cell.velocity[0]*0.1;
-  		yVel = deltaTime * cell.velocity[1]*0.1;
+  		// xVel = deltaTime * cell.velocity[0]*0.01;
+  		// yVel = deltaTime * cell.velocity[1]*0.01;
 
-  		cell.color = gridCopy[positiveMod(math.floor(i-yVel),200)][positiveMod(math.floor(j-xVel),200)].color;
+  		// cell.color = gridCopy[positiveMod(math.floor(i-yVel),10)][positiveMod(math.floor(j-xVel),10)].color;
   	}
   }
   updatePixels();

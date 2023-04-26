@@ -8,12 +8,18 @@ uniform sampler2D pressure;
 uniform sampler2D velocity;
 
 float sigmoid(float x) {
-  return 1.0 / (1.0 + exp(-x));
+  if(x >= 0.0) {
+    return 1.0 / (1.0 + exp(-x));
+  } 
+  return exp(x) / (exp(x) + 1.0);
 }
 
 float logit(float x) {
+  if(x == 0.0) {
+    return 1e-5;
+  }
   if(x == 1.0) {
-    return 0.0;
+    return 1.0 - 1e-5;
   }
   return log(x / (1.0 - x));
 }
@@ -27,12 +33,11 @@ vec4 encode(vec4 v) {
 }
 
 void main(){
-    float l = decode(texture2D(pressure, v_uv + vec2(-1.0, 0.0) * t_size)).x;
-    float r = decode(texture2D(pressure, v_uv + vec2(1.0, 0.0) * t_size)).x;
-    float u = decode(texture2D(pressure, v_uv + vec2(0.0, 1.0) * t_size)).x;
-    float d = decode(texture2D(pressure, v_uv + vec2(0.0, -1.0) * t_size)).x;
+    float l = decode(texture2D(pressure, v_uv - t_size.x)).x;
+    float r = decode(texture2D(pressure, v_uv + t_size.y)).x;
+    float u = decode(texture2D(pressure, v_uv + t_size.y)).x;
+    float d = decode(texture2D(pressure, v_uv - t_size.y)).x;
     vec2 v = decode(texture2D(velocity, v_uv)).xy;
-    vec2 gradP = vec2(r - l, u - d);
-    v = v - gradP;
+    v = v - 0.5 * dt / t_size * vec2(r - l, u - d);
     gl_FragColor = vec4(encode(vec4(v, 0.0, 0.0)).xy, 0.0, 1.0);
 }

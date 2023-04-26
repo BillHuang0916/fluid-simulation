@@ -9,12 +9,18 @@ uniform float dt;
 uniform sampler2D velocity;
 
 float sigmoid(float x) {
-  return 1.0 / (1.0 + exp(-x));
+  if(x >= 0.0) {
+    return 1.0 / (1.0 + exp(-x));
+  } 
+  return exp(x) / (exp(x) + 1.0);
 }
 
 float logit(float x) {
+  if(x == 0.0) {
+    return 1e-5;
+  }
   if(x == 1.0) {
-    return 0.0;
+    return 1.0 - 1e-5;
   }
   return log(x / (1.0 - x));
 }

@@ -49,16 +49,16 @@ document.addEventListener("mousemove", e => {
 
 function preload() {
     // load each shader file (don"t worry, we will come back to these!)
-    initialShader = loadShader("static/webgl/shader.vert", "static/webgl/initial.frag")
-    initialPressureShader = loadShader("static/webgl/shader.vert", "static/webgl/initialPressure.frag")
-    initialDivergenceShader = loadShader("static/webgl/shader.vert", "static/webgl/initialDivergence.frag")
-    fieldShader = loadShader("static/webgl/shader.vert", "static/webgl/mouse.frag");
-    divergenceShader = loadShader("static/webgl/shader.vert", "static/webgl/divergence.frag");
-    pressureShader = loadShader("static/webgl/shader.vert", "static/webgl/pressure.frag");
-    velocityShader = loadShader("static/webgl/shader.vert", "static/webgl/divergence.frag");
-    advectionShader = loadShader("static/webgl/shader.vert", "static/webgl/advection.frag");
-    colorShader = loadShader("static/webgl/shader.vert", "static/webgl/color.frag");
-    colorPressureShader = loadShader("static/webgl/shader.vert", "static/webgl/colorPressure.frag");
+    initialShader = loadShader("static/webglp5/shader.vert", "static/webglp5/initial.frag")
+    initialPressureShader = loadShader("static/webglp5/shader.vert", "static/webglp5/initialPressure.frag")
+    initialDivergenceShader = loadShader("static/webglp5/shader.vert", "static/webglp5/initialDivergence.frag")
+    fieldShader = loadShader("static/webglp5/shader.vert", "static/webglp5/mouse.frag");
+    divergenceShader = loadShader("static/webglp5/shader.vert", "static/webglp5/divergence.frag");
+    pressureShader = loadShader("static/webglp5/shader.vert", "static/webglp5/pressure.frag");
+    velocityShader = loadShader("static/webglp5/shader.vert", "static/webglp5/divergence.frag");
+    advectionShader = loadShader("static/webglp5/shader.vert", "static/webglp5/advection.frag");
+    colorShader = loadShader("static/webglp5/shader.vert", "static/webglp5/color.frag");
+    colorPressureShader = loadShader("static/webglp5/shader.vert", "static/webglp5/colorPressure.frag");
 }
 
 function setup() {

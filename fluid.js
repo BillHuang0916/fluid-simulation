@@ -1,4 +1,4 @@
-const dt = 0.01;
+const dt = 0.05;
 const forceAmplifier = 1;
 const PRESSURE_STEPS = 10;
 
@@ -213,9 +213,9 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 
 void main(){
     // vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
-    vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
-    vec4 advection = texture2D(velocity, prev_uv);
-    // vec4 advection = bilerp(velocity, prev_uv);
+    // vec4 advection = texture2D(velocity, prev_uv);
+    vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
+    vec4 advection = bilerp(velocity, prev_uv);
     gl_FragColor = advection;
 }
 `;
@@ -493,7 +493,7 @@ function render() {
     gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-    gl.uniform1i(fieldProgram.uniforms.velocity, 0);
+    gl.uniform1i(velocityProgram.uniforms.velocity, 0);
     gl.activeTexture(gl.TEXTURE0 + 1);
     gl.bindTexture(gl.TEXTURE_2D, pressureFbos[pressureSwapped % 2].texture);
     gl.uniform1i(velocityProgram.uniforms.pressure, 1);

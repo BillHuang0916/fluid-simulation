@@ -1,7 +1,7 @@
 const dt = 0.0133;
 const forceAmplifier = .1;
 const PRESSURE_STEPS = 10;
-const viscosity = 500;
+const viscosity = 50;
 
 let canvas = document.querySelector("#fluid_sim");
 let gl = canvas.getContext("webgl");
@@ -272,10 +272,10 @@ uniform vec2 t_size;
 uniform sampler2D velocity;
 
 void main(){
-    float l = texture2D(velocity, v_uv - t_size.x).x;
-    float r = texture2D(velocity, v_uv + t_size.x).x;
-    float u = texture2D(velocity, v_uv + t_size.y).y;
-    float d = texture2D(velocity, v_uv - t_size.y).y;
+    float l = texture2D(velocity, v_uv + vec2(-1.0, 0.0)* t_size).x;
+    float r = texture2D(velocity, v_uv + vec2(1.0, 0.0)* t_size).x;
+    float u = texture2D(velocity, v_uv + vec2(0.0, 1.0)* t_size).y;
+    float d = texture2D(velocity, v_uv + vec2(0.0, -1.0)* t_size).y;
 
     float divergence = (r - l + u - d)/2.0;
     gl_FragColor = vec4(divergence, 0.0, 0.0, 1.0);
@@ -293,10 +293,10 @@ uniform sampler2D pressure;
 uniform sampler2D divergence;
 
 void main(){
-    float l = texture2D(pressure, v_uv - 2.0 * t_size.x).x;
-    float r = texture2D(pressure, v_uv + 2.0 * t_size.x).x;
-    float u = texture2D(pressure, v_uv + 2.0 * t_size.y).x;
-    float d = texture2D(pressure, v_uv - 2.0 * t_size.y).x;
+    float l = texture2D(pressure, v_uv + vec2(-1.0, 0.0)* t_size).x;
+    float r = texture2D(pressure, v_uv + vec2(1.0, 0.0)* t_size).x;
+    float u = texture2D(pressure, v_uv + vec2(0.0, 1.0)* t_size).x;
+    float d = texture2D(pressure, v_uv + vec2(0.0, -1.0)* t_size).x;
     float diverge = texture2D(divergence, v_uv).x;
     float newPressure = (l + r + u + d) * 0.25 - diverge/dt;
     gl_FragColor = vec4(newPressure, 0.0, 0.0, 1.0);
@@ -314,27 +314,17 @@ uniform sampler2D pressure;
 uniform sampler2D velocity;
 uniform vec2 c_size;
 
-vec4 bilerp(sampler2D sam, vec2 uv) {
-    vec2 p_uv = uv * c_size;
-    vec2 weights = fract(p_uv);
-    vec4 a = texture2D(sam, uv + vec2(-1.0, -1.0) * t_size);
-    vec4 b = texture2D(sam, uv + vec2(1.0, -1.0) * t_size);
-    vec4 c = texture2D(sam, uv + vec2(-1.0, 1.0) * t_size);
-    vec4 d = texture2D(sam, uv + vec2(1.0, 1.0) * t_size);
-    return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
-}
-
 void main(){
-    vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
-    float l = texture2D(pressure, v_uv - 1.0 * t_size.x).x;
-    float r = texture2D(pressure, v_uv + 1.0 * t_size.x).x;
-    float u = texture2D(pressure, v_uv + 1.0 * t_size.y).x;
-    float d = texture2D(pressure, v_uv - 1.0 * t_size.y).x;
+    vec2 cur_vel = texture2D(velocity, v_uv).xy;
+    float l = texture2D(pressure, v_uv + vec2(-1.0, 0.0)* t_size).x;
+    float r = texture2D(pressure, v_uv + vec2(1.0, 0.0)* t_size).x;
+    float u = texture2D(pressure, v_uv + vec2(0.0, 1.0)* t_size).x;
+    float d = texture2D(pressure, v_uv + vec2(0.0, -1.0)* t_size).x;
 
     float gradPx = (r - l)/2.0;
     float gradPy = (u - d)/2.0;
 
-    vec2 new_vel = vec2(prev_uv.x - dt*gradPx, prev_uv.y - dt*gradPy);
+    vec2 new_vel = vec2(cur_vel.x - dt*gradPx, cur_vel.y - dt*gradPy);
 
     gl_FragColor = vec4(new_vel, 0.0, 1.0);
 }
@@ -531,7 +521,7 @@ function render() {
     }
     
     // Run Jacobi's method to calculate pressure
-    for (let i = 0; i < PRESSURE_STEPS; i++) {
+    for (let i = 0; i < 5; i++) {
         // Bind Pressure Calculation Program
         gl.useProgram(pressureProgram.program);
         gl.bindFramebuffer(gl.FRAMEBUFFER, pressureFbos[(pressureSwapped + 1) % 2].fbo);
@@ -562,6 +552,7 @@ function render() {
     gl.uniform1f(velocityProgram.uniforms.dt, dt);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
+    velocitySwapped = !velocitySwapped;
 
     // Bind Color Program
     gl.useProgram(colorProgram.program);

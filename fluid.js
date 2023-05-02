@@ -1,6 +1,5 @@
-const dt = 0.0005;
+const dt = 0.1;
 const forceAmplifier = 1;
-const forceOffset = 0.5;
 const PRESSURE_STEPS = 10;
 
 let canvas = document.querySelector("#fluid_sim");
@@ -31,14 +30,14 @@ let prevMousePos = null;
 function getCursorPosition(canvas, event) {
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
+    const y = canvas.height - (event.clientY - rect.top);
     return [x, y];
 }
 
 canvas.addEventListener('mousedown', function (e) {
     mouseHeld = true;
     prevMousePos = getCursorPosition(canvas, e);
-    //console.log("x: " + prevMousePos[0] + " y: " + prevMousePos[1]);
+    console.log("x: " + prevMousePos[0] + " y: " + prevMousePos[1]);
 })
 
 canvas.addEventListener('mousemove', function (e) {
@@ -191,7 +190,6 @@ const advectionShaderStr = `
 precision highp float;
 
 varying vec2 v_uv;
-varying vec2 v_pos;
 
 uniform vec2 c_size;
 uniform vec2 t_size;
@@ -209,8 +207,10 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 }
 
 void main(){
-    vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
-    vec4 advection = vec4(prev_uv.xy, 0.0, 1.0);
+    // vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
+    vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
+    vec4 advection = texture2D(velocity, prev_uv);
+    // vec4 advection = bilerp(velocity, prev_uv);
     gl_FragColor = advection;
 }
 `;
@@ -417,7 +417,7 @@ function setup() {
 }
 
 
-function render(dt) {
+function render() {
     resizeCanvasToDisplaySize(canvas);
     // Clear the canvas
     gl.clearColor(0, 0, 0, 0);
@@ -431,10 +431,11 @@ function render(dt) {
         gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
         gl.uniform1i(fieldProgram.uniforms.velocity, 0);
         gl.uniform2fv(fieldProgram.uniforms.force, force);
-        let vMousePos = [2.0 * (mousePos[0] / canvas.width) - 1.0, -2.0 * (mousePos[1] / canvas.height) + 1.0];
+        let vMousePos = [2.0 * (mousePos[0] / canvas.width) - 1.0, 2.0 * (mousePos[1] / canvas.height) - 1.0];
         gl.uniform2fv(fieldProgram.uniforms.v_mouse, vMousePos);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.viewport(0, 0, canvas.width, canvas.height);
+        velocitySwapped = !velocitySwapped;
 
         // Bind Fill Program
         // gl.useProgram(fillProgram.program);
@@ -444,11 +445,25 @@ function render(dt) {
         // gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
+
+    // Bind Advection Program
+    gl.useProgram(advectionProgram.program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+    gl.uniform1i(advectionProgram.uniforms.velocity, 0);
+    gl.uniform2fv(advectionProgram.uniforms.c_size, [canvas.width, canvas.height]);
+    gl.uniform2fv(advectionProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+    gl.uniform1f(advectionProgram.uniforms.dt, dt);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    velocitySwapped = !velocitySwapped;
+
     // Bind Color Program
     gl.useProgram(colorProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbo.fbo);
     gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[(velocitySwapped + 1) % 2].texture);
+    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
     gl.uniform1i(fillProgram.uniforms.velocity, 0);
     gl.uniform2fv(fillProgram.uniforms.c_size, [canvas.width, canvas.height]);
     gl.uniform2fv(fillProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
@@ -460,7 +475,6 @@ function render(dt) {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
     requestAnimationFrame(render);
-    velocitySwapped = !velocitySwapped;
 }
 
 function main() {

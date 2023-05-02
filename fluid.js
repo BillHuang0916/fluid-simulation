@@ -1,6 +1,7 @@
-const dt = 0.05;
-const forceAmplifier = 1;
+const dt = 0.01;
+const forceAmplifier = 1 / 20;
 const PRESSURE_STEPS = 10;
+const mouseEffectRadius = 100;
 
 let canvas = document.querySelector("#fluid_sim");
 let gl = canvas.getContext("webgl");
@@ -45,17 +46,16 @@ canvas.addEventListener('mousemove', function (e) {
         return;
     }
     mousePos = getCursorPosition(canvas, e);
-    if (mousePos[0] - prevMousePos[0] == 0 && mousePos[1] - prevMousePos[1] == 0) {
-        prevMousePos = mousePos;
-        return
+    if (mousePos[0] == prevMousePos[0] && mousePos[1] == prevMousePos[1]) {
+        force = [0, 0];
+    } else {
+        force = [(mousePos[0] - prevMousePos[0]) * forceAmplifier, (mousePos[1] - prevMousePos[1]) * forceAmplifier];
     }
-    force = [(mousePos[0] - prevMousePos[0]) * forceAmplifier, (mousePos[1] - prevMousePos[1]) * forceAmplifier];
-    //add force originating from mousePos to velocity field
-    prevMousePos = mousePos;
 })
 
 canvas.addEventListener('mouseup', function (e) {
     prevMousePos = null;
+    force = null;
     mouseHeld = false;
 })
 
@@ -212,10 +212,10 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 }
 
 void main(){
-    // vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
+    vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
+    vec4 advection = texture2D(velocity, prev_uv);
+    // vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
     // vec4 advection = texture2D(velocity, prev_uv);
-    vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
-    vec4 advection = bilerp(velocity, prev_uv);
     gl_FragColor = advection;
 }
 `;
@@ -345,14 +345,16 @@ varying vec2 v_pos;
 
 uniform vec2 force;
 uniform vec2 v_mouse;
+uniform float display_ratio;
+uniform float v_radius;
 uniform sampler2D velocity;
 
 void main() {
   vec2 oldVel = texture2D(velocity, v_uv).xy;
 
   // The more mouse-centered, the larger the value.
-  float intensity = 1.0 - 5.0 * min(length(v_mouse - v_pos), 0.2) ;
-  intensity = pow(intensity, 3.0);
+  vec2 dir = vec2(display_ratio * (v_mouse.x - v_pos.x), v_mouse.y - v_pos.y);
+  float intensity = 1.0 - min(length(dir) / v_radius, 1.0);
   // Just add the size of the mouse at the uv point to the velocity.
   vec2 newVel = oldVel + intensity * force;
   gl_FragColor = vec4(newVel, 0.0, 1.0);
@@ -379,13 +381,14 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 }
 
 void main() {
-  vec2 vel = bilerp(velocity, v_uv).xy;
-  //vec2 vel = texture2D(velocity, v_uv).xy;
-  float color = length(vel);
-  //float color = vel.x;
-  //float color = texture2D(velocity, v_uv).x;
-  
-  gl_FragColor = vec4(0.0, color, 0.0, 1.0);
+    vec2 vel = texture2D(velocity, v_uv).xy;
+    float len = length(vel);
+    vel = vel * 0.5 + 0.5;
+    
+    vec3 color = vec3(vel.x, vel.y, 1.0);
+    color = mix(vec3(1.0), color, len);
+
+    gl_FragColor = vec4(color,  1.0);
 }
 `;
 
@@ -441,9 +444,12 @@ function render() {
         gl.uniform2fv(fieldProgram.uniforms.force, force);
         let vMousePos = [2.0 * (mousePos[0] / canvas.width) - 1.0, 2.0 * (mousePos[1] / canvas.height) - 1.0];
         gl.uniform2fv(fieldProgram.uniforms.v_mouse, vMousePos);
+        gl.uniform1f(fieldProgram.uniforms.display_ratio, canvas.width / canvas.height);
+        gl.uniform1f(fieldProgram.uniforms.v_radius, mouseEffectRadius / canvas.height);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.viewport(0, 0, canvas.width, canvas.height);
         velocitySwapped = !velocitySwapped;
+        prevMousePos = mousePos;
 
         // Bind Fill Program
         // gl.useProgram(fillProgram.program);
@@ -452,6 +458,20 @@ function render() {
         // gl.viewport(0, 0, canvas.width, canvas.height);
         // gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
+
+    // Bind Advection Program
+    gl.useProgram(advectionProgram.program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+    gl.uniform1i(advectionProgram.uniforms.velocity, 0);
+    gl.uniform2fv(advectionProgram.uniforms.c_size, [canvas.width, canvas.height]);
+    gl.uniform2fv(advectionProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+    gl.uniform1f(advectionProgram.uniforms.dt, dt);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    velocitySwapped = !velocitySwapped;
+
     // Bind Divergence Program
     gl.useProgram(divergenceProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, divergenceFbo.fbo);
@@ -502,19 +522,6 @@ function render() {
     gl.uniform1f(velocityProgram.uniforms.dt, dt);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
-
-    // Bind Advection Program
-    gl.useProgram(advectionProgram.program);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-    gl.uniform1i(advectionProgram.uniforms.velocity, 0);
-    gl.uniform2fv(advectionProgram.uniforms.c_size, [canvas.width, canvas.height]);
-    gl.uniform2fv(advectionProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
-    gl.uniform1f(advectionProgram.uniforms.dt, dt);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    velocitySwapped = !velocitySwapped;
 
     // Bind Color Program
     gl.useProgram(colorProgram.program);

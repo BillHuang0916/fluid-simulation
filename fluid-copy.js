@@ -1,5 +1,5 @@
 const dt = 0.0005;
-const forceAmplifier = 1;
+const forceAmplifier = 10;
 const forceOffset = 0.5;
 const PRESSURE_STEPS = 10;
 
@@ -171,7 +171,7 @@ varying vec2 v_pos;
 void main() {
   // We need to negate the y coordinate because p5.js has (0,0) defined
   // in the bottom left corner while WebGL has it in the top left corner.
-  v_uv = aPosition;
+  v_uv = vec2(aPosition.x, 1.0 - aPosition.y);
   
   // WebGL canvas ranges from -1 to 1 for both x and y.
   v_pos = v_uv * 2.0 - 1.0;
@@ -345,11 +345,11 @@ void main() {
   vec2 oldVel = texture2D(velocity, v_uv).xy;
 
   // The more mouse-centered, the larger the value.
-  float intensity = 1.0 - 5.0 * min(length(v_mouse - v_pos), 0.2) ;
+  float intensity = 1.0 - 5.0 * min(length(v_mouse.xy - v_pos), 0.2) ;
   intensity = pow(intensity, 3.0);
   // Just add the size of the mouse at the uv point to the velocity.
   vec2 newVel = oldVel + intensity * force;
-  gl_FragColor = vec4(newVel, 0.0, 1.0);
+  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
 }
 `;
 
@@ -429,12 +429,13 @@ function render(dt) {
         gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-        gl.uniform1i(fieldProgram.uniforms.velocity, 0);
-        gl.uniform2fv(fieldProgram.uniforms.force, force);
-        let vMousePos = [2.0 * (mousePos[0] / canvas.width) - 1.0, -2.0 * (mousePos[1] / canvas.height) + 1.0];
-        gl.uniform2fv(fieldProgram.uniforms.v_mouse, vMousePos);
+        gl.uniform1i(fillProgram.uniforms.velocity, 0);
+        gl.uniform2fv(fillProgram.uniforms.force, force);
+        let vMousePos = [2.0 * (mousePos[0] / canvas.width) - 1.0, 2.0 * (mousePos[1] / canvas.height) - 1.0];
+        gl.uniform2fv(fillProgram.uniforms.v_mouse, vMousePos);
         gl.drawArrays(gl.TRIANGLES, 0, 6);
         gl.viewport(0, 0, canvas.width, canvas.height);
+        //velocitySwapped = !velocitySwapped;
 
         // Bind Fill Program
         // gl.useProgram(fillProgram.program);
@@ -459,13 +460,13 @@ function render(dt) {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
-    requestAnimationFrame(render);
-    velocitySwapped = !velocitySwapped;
 }
 
 function main() {
     setup();
-    requestAnimationFrame(render);
+    while (true){
+        requestAnimationFrame(render);
+    }
 }
 
 main();

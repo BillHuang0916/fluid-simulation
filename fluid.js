@@ -1,10 +1,13 @@
-const dt = 0.01;
-const forceAmplifier = 1;
+const dt = 0.0133;
+const forceAmplifier = .1;
 const PRESSURE_STEPS = 10;
+const viscosity = 500;
 
 let canvas = document.querySelector("#fluid_sim");
 let gl = canvas.getContext("webgl");
 let fillProgram;
+let fillFromSourceProgram;
+let diffusionProgram;
 let fieldProgram;
 let divergenceProgram;
 let pressureProgram;
@@ -18,6 +21,7 @@ let velocityFbos = [];
 let pressureFbos = [];
 let diffusionFbos = [];
 let colorFbo;
+let pressureInit = false;
 let velocitySwapped = false;
 let pressureSwapped = false;
 let diffusionSwapped = false;
@@ -37,7 +41,8 @@ function getCursorPosition(canvas, event) {
 canvas.addEventListener('mousedown', function (e) {
     mouseHeld = true;
     prevMousePos = getCursorPosition(canvas, e);
-    console.log("x: " + prevMousePos[0] + " y: " + prevMousePos[1]);
+    force = null;
+    //console.log("x: " + prevMousePos[0] + " y: " + prevMousePos[1]);
 })
 
 canvas.addEventListener('mousemove', function (e) {
@@ -190,6 +195,17 @@ void main() {
   gl_FragColor = color;
 }`;
 
+const fillFromSourceShaderStr = `
+precision highp float;
+
+varying vec2 v_uv;
+
+uniform sampler2D source;
+
+void main() {
+  gl_FragColor = texture2D(source, v_uv);
+}`;
+
 const advectionShaderStr = `
 precision highp float;
 
@@ -203,19 +219,17 @@ uniform sampler2D velocity;
 vec4 bilerp(sampler2D sam, vec2 uv) {
     vec2 p_uv = uv * c_size;
     vec2 weights = fract(p_uv);
-    vec2 floored = floor(p_uv)/c_size;
-    vec4 a = texture2D(sam, floored);
-    vec4 b = texture2D(sam, floored + vec2(1.0, 0) * t_size);
-    vec4 c = texture2D(sam, floored + vec2(0, 1.0) * t_size);
-    vec4 d = texture2D(sam, floored + vec2(1.0, 1.0) * t_size);
+    vec4 a = texture2D(sam, uv + vec2(-1.0, -1.0) * t_size);
+    vec4 b = texture2D(sam, uv + vec2(1.0, -1.0) * t_size);
+    vec4 c = texture2D(sam, uv + vec2(-1.0, 1.0) * t_size);
+    vec4 d = texture2D(sam, uv + vec2(1.0, 1.0) * t_size);
     return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
 }
 
 void main(){
-    // vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
     vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
+    //vec4 advection = bilerp(velocity, prev_uv);
     vec4 advection = texture2D(velocity, prev_uv);
-    // vec4 advection = bilerp(velocity, prev_uv);
     gl_FragColor = advection;
 }
 `;
@@ -229,29 +243,18 @@ uniform vec2 t_size;
 uniform float dt;
 uniform float viscosity;
 uniform sampler2D velocity;
-uniform vec2 c_size;
-
-vec4 bilerp(sampler2D sam, vec2 uv) {
-    vec2 p_uv = uv * c_size;
-    vec2 weights = fract(p_uv);
-    vec2 floored = floor(p_uv)/c_size;
-    vec4 a = texture2D(sam, floored);
-    vec4 b = texture2D(sam, floored + vec2(1.0, 0) * t_size);
-    vec4 c = texture2D(sam, floored + vec2(0, 1.0) * t_size);
-    vec4 d = texture2D(sam, floored + vec2(1.0, 1.0) * t_size);
-    return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
-}
+uniform sampler2D diffusion;
 
 void main(){
-    vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
+    vec2 curVel = texture2D(velocity, v_uv).xy;
 
-    vec2 l = texture2D(velocity, v_uv - 2.0 * t_size.x).xy;
-    vec2 r = texture2D(velocity, v_uv + 2.0 * t_size.x).xy;
-    vec2 u = texture2D(velocity, v_uv + 2.0 * t_size.y).xy;
-    vec2 d = texture2D(velocity, v_uv - 2.0 * t_size.y).xy;
+    vec2 l = texture2D(diffusion, v_uv + vec2(-2.0, 0.0)* t_size).xy;
+    vec2 r = texture2D(diffusion, v_uv + vec2(2.0, 0.0)* t_size).xy;
+    vec2 u = texture2D(diffusion, v_uv + vec2(0.0, 2.0)* t_size).xy;
+    vec2 d = texture2D(diffusion, v_uv + vec2(0.0, -2.0)* t_size).xy;
 
-    float diffX = 4.0 * prev_uv.x + viscosity*dt*(l.x + r.x + u.x + d.x);
-    float diffY = 4.0 * prev_uv.y + viscosity*dt*(l.y + r.y + u.y + d.y);
+    float diffX = 4.0 * curVel.x + viscosity*dt*(l.x + r.x + u.x + d.x);
+    float diffY = 4.0 * curVel.y + viscosity*dt*(l.y + r.y + u.y + d.y);
 
     vec2 diff = vec2(diffX, diffY) / (4.0*(1.0 + viscosity*dt));
 
@@ -351,8 +354,8 @@ void main() {
   vec2 oldVel = texture2D(velocity, v_uv).xy;
 
   // The more mouse-centered, the larger the value.
-  float intensity = 1.0 - 5.0 * min(length(v_mouse - v_pos), 0.2) ;
-  intensity = pow(intensity, 3.0);
+  float intensity = length(v_mouse - v_pos) < 0.1? 1.0 : 0.0; 
+  //float intensity = 1.0 - min(length(v_mouse - v_pos), 0.2) ;
   // Just add the size of the mouse at the uv point to the velocity.
   vec2 newVel = oldVel + intensity * force;
   gl_FragColor = vec4(newVel, 0.0, 1.0);
@@ -393,6 +396,7 @@ let vertexShader = createShader(gl.VERTEX_SHADER, defaultVertexShaderStr);
 let fillShader = createShader(gl.FRAGMENT_SHADER, fillShaderStr);
 let fieldShader = createShader(gl.FRAGMENT_SHADER, mouseShaderStr);
 let advectionShader = createShader(gl.FRAGMENT_SHADER, advectionShaderStr);
+let fillFromSourceShader = createShader(gl.FRAGMENT_SHADER, fillFromSourceShaderStr);
 let diffusionShader = createShader(gl.FRAGMENT_SHADER, diffusionShaderStr);
 let divergenceShader = createShader(gl.FRAGMENT_SHADER, divergenceShaderStr);
 let pressureCalcShader = createShader(gl.FRAGMENT_SHADER, pressureCalcShaderStr);
@@ -412,6 +416,7 @@ function setup() {
     fieldProgram = new Program(vertexShader, fieldShader);
     colorProgram = new Program(vertexShader, colorShader);
     advectionProgram = new Program(vertexShader, advectionShader);
+    fillFromSourceProgram = new Program(vertexShader, fillFromSourceShader);
     diffusionProgram = new Program(vertexShader, diffusionShader);
     divergenceProgram = new Program(vertexShader, divergenceShader);
     pressureProgram = new Program(vertexShader, pressureCalcShader);
@@ -452,6 +457,58 @@ function render() {
         // gl.viewport(0, 0, canvas.width, canvas.height);
         // gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
+
+    // Bind Advection Program
+    gl.useProgram(advectionProgram.program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+    gl.uniform1i(advectionProgram.uniforms.velocity, 0);
+    gl.uniform2fv(advectionProgram.uniforms.c_size, [canvas.width, canvas.height]);
+    gl.uniform2fv(advectionProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+    gl.uniform1f(advectionProgram.uniforms.dt, dt);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    velocitySwapped = !velocitySwapped;
+
+
+    gl.useProgram(fillFromSourceProgram.program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[diffusionSwapped % 2].fbo);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+    gl.uniform1i(fillFromSourceProgram.uniforms.source, 0);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    for (let i = 0; i < 20; i++) {
+        // Bind Diffusion Calculation Program
+        gl.useProgram(diffusionProgram.program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[(diffusionSwapped + 1) % 2].fbo);
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, diffusionFbos[diffusionSwapped % 2].texture);
+        gl.uniform1i(diffusionProgram.uniforms.diffusion, 0);
+
+        gl.activeTexture(gl.TEXTURE0 + 1);
+        gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+        gl.uniform1i(diffusionProgram.uniforms.velocity, 1);
+
+        gl.uniform2fv(diffusionProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+        gl.uniform1f(diffusionProgram.uniforms.dt, dt);
+        gl.uniform1f(diffusionProgram.uniforms.viscosity, viscosity);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        diffusionSwapped = !diffusionSwapped;
+    }
+
+    gl.useProgram(fillFromSourceProgram.program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[velocitySwapped % 2].fbo);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, diffusionFbos[diffusionSwapped % 2].texture);
+    gl.uniform1i(fillFromSourceProgram.uniforms.source, 0);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
     // Bind Divergence Program
     gl.useProgram(divergenceProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, divergenceFbo.fbo);
@@ -463,13 +520,16 @@ function render() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
 
-    // Bind Fill Program to set initial pressure guess of 0 everywhere
-    gl.useProgram(fillProgram.program);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, pressureFbos[pressureSwapped % 2].fbo);
-    gl.uniform4fv(fillProgram.uniforms.color, [0.0, 0.0, 0.0, 1.0]);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-
+    if (!pressureInit) {
+        // Bind Fill Program to set initial pressure guess of 0 everywhere
+        gl.useProgram(fillProgram.program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, pressureFbos[pressureSwapped % 2].fbo);
+        gl.uniform4fv(fillProgram.uniforms.color, [0.0, 0.0, 0.0, 1.0]);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        pressureInit = true;
+    }
+    
     // Run Jacobi's method to calculate pressure
     for (let i = 0; i < PRESSURE_STEPS; i++) {
         // Bind Pressure Calculation Program
@@ -493,7 +553,7 @@ function render() {
     gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-    gl.uniform1i(fieldProgram.uniforms.velocity, 0);
+    gl.uniform1i(velocityProgram.uniforms.velocity, 0);
     gl.activeTexture(gl.TEXTURE0 + 1);
     gl.bindTexture(gl.TEXTURE_2D, pressureFbos[pressureSwapped % 2].texture);
     gl.uniform1i(velocityProgram.uniforms.pressure, 1);
@@ -502,19 +562,6 @@ function render() {
     gl.uniform1f(velocityProgram.uniforms.dt, dt);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
-
-    // Bind Advection Program
-    gl.useProgram(advectionProgram.program);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-    gl.uniform1i(advectionProgram.uniforms.velocity, 0);
-    gl.uniform2fv(advectionProgram.uniforms.c_size, [canvas.width, canvas.height]);
-    gl.uniform2fv(advectionProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
-    gl.uniform1f(advectionProgram.uniforms.dt, dt);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    velocitySwapped = !velocitySwapped;
 
     // Bind Color Program
     gl.useProgram(colorProgram.program);

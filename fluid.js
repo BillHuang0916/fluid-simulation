@@ -1,7 +1,8 @@
 const dt = 0.0133;
-const forceAmplifier = .1;
+const forceAmplifier = .02;
+const DIFFUSION_STEPS = 10;
 const PRESSURE_STEPS = 10;
-const viscosity = 50;
+const viscosity = 100;
 
 let canvas = document.querySelector("#fluid_sim");
 let gl = canvas.getContext("webgl");
@@ -55,7 +56,6 @@ canvas.addEventListener('mousemove', function (e) {
         return
     }
     force = [(mousePos[0] - prevMousePos[0]) * forceAmplifier, (mousePos[1] - prevMousePos[1]) * forceAmplifier];
-    //add force originating from mousePos to velocity field
     prevMousePos = mousePos;
 })
 
@@ -228,8 +228,7 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 
 void main(){
     vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
-    //vec4 advection = bilerp(velocity, prev_uv);
-    vec4 advection = texture2D(velocity, prev_uv);
+    vec4 advection = bilerp(velocity, prev_uv);
     gl_FragColor = advection;
 }
 `;
@@ -448,6 +447,8 @@ function render() {
         // gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
+    //start of advection
+
     // Bind Advection Program
     gl.useProgram(advectionProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
@@ -461,6 +462,9 @@ function render() {
     gl.viewport(0, 0, canvas.width, canvas.height);
     velocitySwapped = !velocitySwapped;
 
+    //end of advection
+
+    //start of diffusion
 
     gl.useProgram(fillFromSourceProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[diffusionSwapped % 2].fbo);
@@ -470,7 +474,7 @@ function render() {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < DIFFUSION_STEPS; i++) {
         // Bind Diffusion Calculation Program
         gl.useProgram(diffusionProgram.program);
         gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[(diffusionSwapped + 1) % 2].fbo);
@@ -499,6 +503,10 @@ function render() {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
+    //end of diffusion
+
+    //start of pressure
+
     // Bind Divergence Program
     gl.useProgram(divergenceProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, divergenceFbo.fbo);
@@ -521,7 +529,7 @@ function render() {
     }
     
     // Run Jacobi's method to calculate pressure
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < PRESSURE_STEPS; i++) {
         // Bind Pressure Calculation Program
         gl.useProgram(pressureProgram.program);
         gl.bindFramebuffer(gl.FRAMEBUFFER, pressureFbos[(pressureSwapped + 1) % 2].fbo);
@@ -553,6 +561,8 @@ function render() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
     velocitySwapped = !velocitySwapped;
+
+    //end of pressure
 
     // Bind Color Program
     gl.useProgram(colorProgram.program);

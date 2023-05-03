@@ -18,10 +18,9 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 }
 
 void main() {
-  vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
+  vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
   vec4 advection = texture2D(velocity, prev_uv);
+    // vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
+    // vec4 advection = texture2D(velocity, prev_uv);
   gl_FragColor = advection;
-  // vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
-  // vec4 advection = bilerp(velocity, prev_uv);
-  // gl_FragColor = advection;
 }

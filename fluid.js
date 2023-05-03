@@ -3,7 +3,7 @@ const forceAmplifier = 1 / 20;
 const DIFFUSION_STEPS = 5;
 const PRESSURE_STEPS = 5;
 const mouseEffectRadius = 100;
-const viscosity = 50;
+const viscosity = 100;
 
 let canvas = document.querySelector("#fluid_sim");
 let gl = canvas.getContext("webgl");
@@ -31,6 +31,7 @@ let diffusionSwapped = false;
 let colorSwapped = false;
 let mouseHeld = false
 let force = null;
+let vMousePos = null;
 let mousePos = null;
 let prevMousePos = null;
 
@@ -54,6 +55,7 @@ canvas.addEventListener('mousemove', function (e) {
         return;
     }
     mousePos = getCursorPosition(canvas, e);
+    vMousePos = [2.0 * (mousePos[0] / canvas.width) - 1.0, 2.0 * (mousePos[1] / canvas.height) - 1.0];
     if (mousePos[0] == prevMousePos[0] && mousePos[1] == prevMousePos[1]) {
         force = [0, 0];
     } else {
@@ -251,8 +253,7 @@ void main(){
     // vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
     // vec4 advection = texture2D(velocity, prev_uv);
     gl_FragColor = advection;
-}
-`;
+}`;
 
 const diffusionShaderStr = `
 precision highp float;
@@ -280,8 +281,7 @@ void main(){
     vec2 diff = vec2(diffX, diffY) / (4.0*(1.0 + viscosity*dt));
 
     gl_FragColor = vec4(diff, 0.0, 1.0);
-}
-`;
+}`;
 
 const divergenceShaderStr = `
 precision highp float;
@@ -300,8 +300,7 @@ void main(){
 
     float divergence = (r - l + u - d)/2.0;
     gl_FragColor = vec4(divergence, 0.0, 0.0, 1.0);
-}
-`;
+}`;
 
 const pressureCalcShaderStr = `
 precision highp float;
@@ -321,8 +320,7 @@ void main(){
     float diverge = texture2D(divergence, v_uv).x;
     float newPressure = (l + r + u + d) * 0.25 - diverge/dt;
     gl_FragColor = vec4(newPressure, 0.0, 0.0, 1.0);
-}
-`;
+}`;
 
 const pressureUpdateShaderStr = `
 precision highp float;
@@ -348,8 +346,7 @@ void main(){
     vec2 new_vel = vec2(cur_vel.x - dt*gradPx, cur_vel.y - dt*gradPy);
 
     gl_FragColor = vec4(new_vel, 0.0, 1.0);
-}
-`;
+}`;
 
 const mouseShaderStr = `
 precision highp float;
@@ -372,8 +369,7 @@ void main() {
   // Just add the size of the mouse at the uv point to the velocity.
   vec2 newVel = oldVel + intensity * force;
   gl_FragColor = vec4(newVel, 0.0, 1.0);
-}
-`;
+}`;
 
 const colorShaderStr = `
 precision highp float;
@@ -401,12 +397,11 @@ void main() {
     float len = length(vel);
     vel = vel * 0.5 + 0.5;
     
-    vec3 color = vec3(vel.x, vel.y, 1.0);
-    color = mix(vec3(1.0), color, len);
+    vec3 color = vec3(vel.x, vel.y, 1.0);   
+    color = clamp(mix(vec3(1.0), color, len), 0.0, 1.0);
 
     gl_FragColor = vec4(color,  1.0);
-}
-`;
+}`;
 
 const colorPrevShaderStr = `
 precision highp float;
@@ -441,8 +436,7 @@ void main() {
   vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
   vec4 color = bilerp(colors, prev_uv); 
   gl_FragColor = color;
-}
-`;
+}`;
 
 let vertexShader = createShader(gl.VERTEX_SHADER, defaultVertexShaderStr);
 let fillShader = createShader(gl.FRAGMENT_SHADER, fillShaderStr);
@@ -512,7 +506,6 @@ function render() {
         gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
         gl.uniform1i(fieldProgram.uniforms.velocity, 0);
         gl.uniform2fv(fieldProgram.uniforms.force, force);
-        let vMousePos = [2.0 * (mousePos[0] / canvas.width) - 1.0, 2.0 * (mousePos[1] / canvas.height) - 1.0];
         gl.uniform2fv(fieldProgram.uniforms.v_mouse, vMousePos);
         gl.uniform1f(fieldProgram.uniforms.display_ratio, canvas.width / canvas.height);
         gl.uniform1f(fieldProgram.uniforms.v_radius, mouseEffectRadius / canvas.height);
@@ -520,13 +513,6 @@ function render() {
         gl.viewport(0, 0, canvas.width, canvas.height);
         velocitySwapped = !velocitySwapped;
         prevMousePos = mousePos;
-
-        // Bind Fill Program
-        // gl.useProgram(fillProgram.program);
-        // gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
-        // gl.uniform4fv(fillProgram.uniforms.color, [0.0, 0.5, 0.0, 1.0]);
-        // gl.viewport(0, 0, canvas.width, canvas.height);
-        // gl.drawArrays(gl.TRIANGLES, 0, 6);
     }
 
     // Bind Advection Program
@@ -550,7 +536,7 @@ function render() {
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < DIFFUSION_STEPS; i++) {
         // Bind Diffusion Calculation Program
         gl.useProgram(diffusionProgram.program);
         gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[(diffusionSwapped + 1) % 2].fbo);
@@ -601,7 +587,7 @@ function render() {
     }
 
     // Run Jacobi's method to calculate pressure
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < PRESSURE_STEPS; i++) {
         // Bind Pressure Calculation Program
         gl.useProgram(pressureProgram.program);
         gl.bindFramebuffer(gl.FRAMEBUFFER, pressureFbos[(pressureSwapped + 1) % 2].fbo);
@@ -627,7 +613,6 @@ function render() {
     gl.activeTexture(gl.TEXTURE0 + 1);
     gl.bindTexture(gl.TEXTURE_2D, pressureFbos[pressureSwapped % 2].texture);
     gl.uniform1i(velocityProgram.uniforms.pressure, 1);
-    gl.uniform2fv(velocityProgram.uniforms.c_size, [canvas.width, canvas.height]);
     gl.uniform2fv(velocityProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
     gl.uniform1f(velocityProgram.uniforms.dt, dt);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -640,12 +625,8 @@ function render() {
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
     gl.uniform1i(colorProgram.uniforms.velocity, 0);
-    gl.activeTexture(gl.TEXTURE0 + 1);
-    gl.bindTexture(gl.TEXTURE_2D, colorFbos[colorSwapped % 2].texture);
-    gl.uniform1i(colorProgram.uniforms.colors, 1);
     gl.uniform2fv(colorProgram.uniforms.c_size, [canvas.width, canvas.height]);
     gl.uniform2fv(colorProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
-    gl.uniform1f(colorProgram.uniforms.dt, dt);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
     colorSwapped = !colorSwapped;
@@ -658,6 +639,7 @@ function render() {
 }
 
 function main() {
+    resizeCanvasToDisplaySize(canvas);
     setup();
     requestAnimationFrame(render);
 }

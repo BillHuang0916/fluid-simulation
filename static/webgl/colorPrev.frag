@@ -5,6 +5,8 @@ varying vec2 v_uv;
 uniform vec2 c_size;
 uniform vec2 t_size;
 uniform sampler2D velocity;
+uniform sampler2D colors;
+uniform float dt;
 
 vec4 bilerp(sampler2D sam, vec2 uv) {
     vec2 p_uv = uv * c_size;
@@ -17,12 +19,15 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 }
 
 void main() {
-    vec2 vel = texture2D(velocity, v_uv).xy;
-    float len = length(vel);
-    vel = vel * 0.5 + 0.5;
-    
-    vec3 color = vec3(vel.x, vel.y, 1.0);   
-    color = clamp(mix(vec3(1.0), color, len), 0.0, 1.0);
+  //vec2 vel = bilerp(velocity, v_uv).xy;
+  //vec2 vel = texture2D(velocity, v_uv).xy;
+  //float color = length(vel);
+  //float color = vel.x;
+  //float color = texture2D(velocity, v_uv).x;
 
-    gl_FragColor = vec4(color,  1.0);
+  //gl_FragColor = vec4(0.0, color, 0.0, 1.0);
+
+    vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
+    vec4 color = bilerp(colors, prev_uv);
+    gl_FragColor = color;
 }

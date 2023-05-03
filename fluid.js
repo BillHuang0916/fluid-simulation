@@ -175,6 +175,18 @@ function createFrameBufferObject(texture) {
 
 
 /* Create Programs */
+const fillFromSourceFlipShaderStr = `
+precision highp float;
+
+varying vec2 v_uv;
+
+uniform sampler2D source;
+
+void main() {
+    vec2 flipped = vec2(v_uv.x, 1.0 - v_uv.y);
+    gl_FragColor = texture2D(source, flipped);
+}`;
+
 const fillFromSourceShaderStr = `
 precision highp float;
 
@@ -218,12 +230,15 @@ varying vec2 v_uv;
 
 uniform vec4 color1;
 uniform vec4 color2;
+uniform vec4 color3;
 
 void main() {
-  if (v_uv.x < 0.5){
+  if (v_uv.x < 0.33){
       gl_FragColor = color1;
-  } else {
+  } else if (v_uv.x < 0.67){
       gl_FragColor = color2;
+  } else {
+    gl_FragColor = color3;
   }
 }`;
 
@@ -240,10 +255,10 @@ uniform sampler2D velocity;
 vec4 bilerp(sampler2D sam, vec2 uv) {
     vec2 p_uv = uv * c_size;
     vec2 weights = fract(p_uv);
-    vec4 a = texture2D(sam, uv + vec2(-1.0, -1.0) * t_size);
-    vec4 b = texture2D(sam, uv + vec2(1.0, -1.0) * t_size);
-    vec4 c = texture2D(sam, uv + vec2(-1.0, 1.0) * t_size);
-    vec4 d = texture2D(sam, uv + vec2(1.0, 1.0) * t_size);
+    vec4 a = texture2D(sam, vec2(floor(p_uv.x), (floor(p_uv.y)))/c_size); //texture2D(sam, uv + vec2(-1.0, -1.0) * t_size);
+    vec4 b = texture2D(sam, vec2(ceil(p_uv.x), (floor(p_uv.y)))/c_size); //texture2D(sam, uv + vec2(1.0, -1.0) * t_size);
+    vec4 c = texture2D(sam, vec2(floor(p_uv.x), (ceil(p_uv.y)))/c_size); //texture2D(sam, uv + vec2(-1.0, 1.0) * t_size);
+    vec4 d = texture2D(sam, vec2(ceil(p_uv.x), (ceil(p_uv.y)))/c_size); //texture2D(sam, uv + vec2(1.0, 1.0) * t_size);
     return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
 }
 
@@ -383,10 +398,11 @@ uniform float dt;
 vec4 bilerp(sampler2D sam, vec2 uv) {
     vec2 p_uv = uv * c_size;
     vec2 weights = fract(p_uv);
-    vec4 a = texture2D(sam, uv + vec2(-1.0, -1.0) * t_size);
-    vec4 b = texture2D(sam, uv + vec2(1.0, -1.0) * t_size);
-    vec4 c = texture2D(sam, uv + vec2(-1.0, 1.0) * t_size);
-    vec4 d = texture2D(sam, uv + vec2(1.0, 1.0) * t_size);
+    vec2 floored_uv = floor(p_uv) / c_size;
+    vec4 a = texture2D(sam, floored_uv); 
+    vec4 b = texture2D(sam, floored_uv + vec2(1.0, 0.0) * t_size);
+    vec4 c = texture2D(sam, floored_uv + vec2(0.0, 1.0) * t_size);
+    vec4 d = texture2D(sam, floored_uv + vec2(1.0, 1.0) * t_size);
     return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
 }
 
@@ -415,10 +431,11 @@ uniform float dt;
 vec4 bilerp(sampler2D sam, vec2 uv) {
     vec2 p_uv = uv * c_size;
     vec2 weights = fract(p_uv);
-    vec4 a = texture2D(sam, uv + vec2(-1.0, -1.0) * t_size);
-    vec4 b = texture2D(sam, uv + vec2(1.0, -1.0) * t_size);
-    vec4 c = texture2D(sam, uv + vec2(-1.0, 1.0) * t_size);
-    vec4 d = texture2D(sam, uv + vec2(1.0, 1.0) * t_size);
+    vec2 floored_uv = floor(p_uv) / c_size;
+    vec4 a = texture2D(sam, floored_uv); 
+    vec4 b = texture2D(sam, floored_uv + vec2(1.0, 0.0) * t_size);
+    vec4 c = texture2D(sam, floored_uv + vec2(0.0, 1.0) * t_size);
+    vec4 d = texture2D(sam, floored_uv + vec2(1.0, 1.0) * t_size);
     return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
 }
 
@@ -432,7 +449,14 @@ void main() {
   //gl_FragColor = vec4(0.0, color, 0.0, 1.0);
 
   vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
-  vec4 color = bilerp(colors, prev_uv); 
+  vec4 color;
+  if (length(texture2D(velocity, v_uv).xy) < 0.000001){
+    color = texture2D(colors, prev_uv);
+  } else {
+    color = bilerp(colors, prev_uv);
+  }
+  //vec4 color = texture2D(colors, prev_uv); 
+  //vec4 color = bilerp(colors, prev_uv); 
   gl_FragColor = color;
 }`;
 
@@ -442,6 +466,7 @@ let fieldShader = createShader(gl.FRAGMENT_SHADER, mouseShaderStr);
 let fillColorShader = createShader(gl.FRAGMENT_SHADER, fillColorShaderStr);
 let advectionShader = createShader(gl.FRAGMENT_SHADER, advectionShaderStr);
 let fillFromSourceShader = createShader(gl.FRAGMENT_SHADER, fillFromSourceShaderStr);
+let fillFromSourceFlipShader = createShader(gl.FRAGMENT_SHADER, fillFromSourceFlipShaderStr);
 let diffusionShader = createShader(gl.FRAGMENT_SHADER, diffusionShaderStr);
 let divergenceShader = createShader(gl.FRAGMENT_SHADER, divergenceShaderStr);
 let pressureCalcShader = createShader(gl.FRAGMENT_SHADER, pressureCalcShaderStr);
@@ -449,7 +474,7 @@ let pressureUpdateShader = createShader(gl.FRAGMENT_SHADER, pressureUpdateShader
 let colorShader = createShader(gl.FRAGMENT_SHADER, colorShaderStr);
 let colorPrevShader = createShader(gl.FRAGMENT_SHADER, colorPrevShaderStr);
 
-function setup() {
+function setup(image) {
     positionBuffer = gl.createBuffer()
 
     fillProgram = new Program(vertexShader, fillShader);
@@ -463,6 +488,7 @@ function setup() {
     colorProgram = new Program(vertexShader, colorShader);
     advectionProgram = new Program(vertexShader, advectionShader);
     fillFromSourceProgram = new Program(vertexShader, fillFromSourceShader);
+    fillFromSourceFlipProgram = new Program(vertexShader, fillFromSourceFlipShader);
     diffusionProgram = new Program(vertexShader, diffusionShader);
     divergenceProgram = new Program(vertexShader, divergenceShader);
     pressureProgram = new Program(vertexShader, pressureCalcShader);
@@ -478,10 +504,33 @@ function setup() {
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
-    gl.useProgram(fillColorProgram.program);
+    /*gl.useProgram(fillColorProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped) % 2].fbo);
     gl.uniform4fv(fillColorProgram.uniforms.color1, [0.5, 0.0, 0.0, 1.0]);
     gl.uniform4fv(fillColorProgram.uniforms.color2, [0.1, 0.4, 0.0, 1.0]);
+    gl.uniform4fv(fillColorProgram.uniforms.color3, [0.1, 0.3, 0.7, 1.0]);
+    gl.uniform2fv(fillColorProgram.uniforms.c_size, [canvas.width, canvas.height]);
+    gl.uniform2fv(fillColorProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);*/
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+
+    // Set the parameters so we can render any size image.
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+
+    // Upload the image into the texture.
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+    gl.useProgram(fillFromSourceFlipProgram.program);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped) % 2].fbo);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.uniform1i(fillFromSourceProgram.uniforms.source, 0);
     gl.uniform2fv(fillColorProgram.uniforms.c_size, [canvas.width, canvas.height]);
     gl.uniform2fv(fillColorProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -649,9 +698,13 @@ function render() {
 }
 
 function main() {
-    resizeCanvasToDisplaySize(canvas);
-    setup();
-    requestAnimationFrame(render);
+    var image = new Image();
+    image.src = "./image2.jpg"
+    image.onload = function () {
+        resizeCanvasToDisplaySize(canvas);
+        setup(image);
+        requestAnimationFrame(render);
+    }
 }
 
 main();

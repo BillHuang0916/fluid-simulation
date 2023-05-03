@@ -183,8 +183,8 @@ varying vec2 v_uv;
 uniform sampler2D source;
 
 void main() {
-    vec2 flipped = vec2(v_uv.x, 1.0 - v_uv.y);
-    gl_FragColor = texture2D(source, flipped);
+  vec2 flipped = vec2(v_uv.x, 1.0 - v_uv.y);
+  gl_FragColor = texture2D(source, flipped);
 }`;
 
 const fillFromSourceShaderStr = `
@@ -204,10 +204,8 @@ varying vec2 v_uv;
 varying vec2 v_pos;
 
 void main() {
-  // We need to negate the y coordinate because p5.js has (0,0) defined
-  // in the bottom left corner while WebGL has it in the top left corner.
   v_uv = aPosition;
-  
+
   // WebGL canvas ranges from -1 to 1 for both x and y.
   v_pos = v_uv * 2.0 - 1.0;
   gl_Position = vec4(aPosition * 2.0 - 1.0, 0.0, 1.0);
@@ -233,13 +231,13 @@ uniform vec4 color2;
 uniform vec4 color3;
 
 void main() {
-  if (v_uv.x < 0.33){
-      gl_FragColor = color1;
-  } else if (v_uv.x < 0.67){
-      gl_FragColor = color2;
-  } else {
-    gl_FragColor = color3;
-  }
+    if(v_uv.x < 0.33) {
+        gl_FragColor = color1;
+    } else if(v_uv.x < 0.67) {
+        gl_FragColor = color2;
+    } else {
+        gl_FragColor = color3;
+    }
 }`;
 
 const advectionShaderStr = `
@@ -253,19 +251,20 @@ uniform float dt;
 uniform sampler2D velocity;
 
 vec4 bilerp(sampler2D sam, vec2 uv) {
-    vec2 p_uv = uv * c_size;
-    vec2 weights = fract(p_uv);
-    vec4 a = texture2D(sam, vec2(floor(p_uv.x), (floor(p_uv.y)))/c_size); //texture2D(sam, uv + vec2(-1.0, -1.0) * t_size);
-    vec4 b = texture2D(sam, vec2(ceil(p_uv.x), (floor(p_uv.y)))/c_size); //texture2D(sam, uv + vec2(1.0, -1.0) * t_size);
-    vec4 c = texture2D(sam, vec2(floor(p_uv.x), (ceil(p_uv.y)))/c_size); //texture2D(sam, uv + vec2(-1.0, 1.0) * t_size);
-    vec4 d = texture2D(sam, vec2(ceil(p_uv.x), (ceil(p_uv.y)))/c_size); //texture2D(sam, uv + vec2(1.0, 1.0) * t_size);
-    return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
+  vec2 p_uv = uv * c_size;
+  vec2 weights = fract(p_uv);
+  vec2 floored_uv = floor(p_uv) / c_size;
+  vec4 a = texture2D(sam, floored_uv);
+  vec4 b = texture2D(sam, floored_uv + vec2(1.0, 0.0) * t_size);
+  vec4 c = texture2D(sam, floored_uv + vec2(0.0, 1.0) * t_size);
+  vec4 d = texture2D(sam, floored_uv + vec2(1.0, 1.0) * t_size);
+  return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
 }
 
-void main(){
-    vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
-    vec4 advection = bilerp(velocity, prev_uv);
-    gl_FragColor = advection;
+void main() {
+  vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
+  vec4 advection = bilerp(velocity, prev_uv);
+  gl_FragColor = advection;
 }`;
 
 const diffusionShaderStr = `
@@ -280,20 +279,20 @@ uniform sampler2D velocity;
 
 uniform sampler2D diffusion;
 
-void main(){
-    vec2 curVel = texture2D(velocity, v_uv).xy;
+void main() {
+  vec2 curVel = texture2D(velocity, v_uv).xy;
 
-    vec2 l = texture2D(diffusion, v_uv + vec2(-2.0, 0.0)* t_size).xy;
-    vec2 r = texture2D(diffusion, v_uv + vec2(2.0, 0.0)* t_size).xy;
-    vec2 u = texture2D(diffusion, v_uv + vec2(0.0, 2.0)* t_size).xy;
-    vec2 d = texture2D(diffusion, v_uv + vec2(0.0, -2.0)* t_size).xy;
+  vec2 l = texture2D(diffusion, v_uv + vec2(-2.0, 0.0) * t_size).xy;
+  vec2 r = texture2D(diffusion, v_uv + vec2(2.0, 0.0) * t_size).xy;
+  vec2 u = texture2D(diffusion, v_uv + vec2(0.0, 2.0) * t_size).xy;
+  vec2 d = texture2D(diffusion, v_uv + vec2(0.0, -2.0) * t_size).xy;
 
-    float diffX = 4.0 * curVel.x + viscosity*dt*(l.x + r.x + u.x + d.x);
-    float diffY = 4.0 * curVel.y + viscosity*dt*(l.y + r.y + u.y + d.y);
+  float diffX = 4.0 * curVel.x + viscosity * dt * (l.x + r.x + u.x + d.x);
+  float diffY = 4.0 * curVel.y + viscosity * dt * (l.y + r.y + u.y + d.y);
 
-    vec2 diff = vec2(diffX, diffY) / (4.0*(1.0 + viscosity*dt));
+  vec2 diff = vec2(diffX, diffY) / (4.0 * (1.0 + viscosity * dt));
 
-    gl_FragColor = vec4(diff, 0.0, 1.0);
+  gl_FragColor = vec4(diff, 0.0, 1.0);
 }`;
 
 const divergenceShaderStr = `
@@ -305,14 +304,14 @@ uniform float dt;
 uniform vec2 t_size;
 uniform sampler2D velocity;
 
-void main(){
-    float l = texture2D(velocity, v_uv + vec2(-1.0, 0.0)* t_size).x;
-    float r = texture2D(velocity, v_uv + vec2(1.0, 0.0)* t_size).x;
-    float u = texture2D(velocity, v_uv + vec2(0.0, 1.0)* t_size).y;
-    float d = texture2D(velocity, v_uv + vec2(0.0, -1.0)* t_size).y;
+void main() {
+  float l = texture2D(velocity, v_uv + vec2(-1.0, 0.0) * t_size).x;
+  float r = texture2D(velocity, v_uv + vec2(1.0, 0.0) * t_size).x;
+  float u = texture2D(velocity, v_uv + vec2(0.0, 1.0) * t_size).y;
+  float d = texture2D(velocity, v_uv + vec2(0.0, -1.0) * t_size).y;
 
-    float divergence = (r - l + u - d)/2.0;
-    gl_FragColor = vec4(divergence, 0.0, 0.0, 1.0);
+  float divergence = (r - l + u - d) / 2.0;
+  gl_FragColor = vec4(divergence, 0.0, 0.0, 1.0);
 }`;
 
 const pressureCalcShaderStr = `
@@ -344,21 +343,20 @@ uniform vec2 t_size;
 uniform float dt;
 uniform sampler2D pressure;
 uniform sampler2D velocity;
-uniform vec2 c_size;
 
-void main(){
-    vec2 cur_vel = texture2D(velocity, v_uv).xy;
-    float l = texture2D(pressure, v_uv + vec2(-1.0, 0.0)* t_size).x;
-    float r = texture2D(pressure, v_uv + vec2(1.0, 0.0)* t_size).x;
-    float u = texture2D(pressure, v_uv + vec2(0.0, 1.0)* t_size).x;
-    float d = texture2D(pressure, v_uv + vec2(0.0, -1.0)* t_size).x;
+void main() {
+  vec2 cur_vel = texture2D(velocity, v_uv).xy;
+  float l = texture2D(pressure, v_uv + vec2(-1.0, 0.0) * t_size).x;
+  float r = texture2D(pressure, v_uv + vec2(1.0, 0.0) * t_size).x;
+  float u = texture2D(pressure, v_uv + vec2(0.0, 1.0) * t_size).x;
+  float d = texture2D(pressure, v_uv + vec2(0.0, -1.0) * t_size).x;
 
-    float gradPx = (r - l)/2.0;
-    float gradPy = (u - d)/2.0;
+  float gradPx = (r - l) / 2.0;
+  float gradPy = (u - d) / 2.0;
 
-    vec2 new_vel = vec2(cur_vel.x - dt*gradPx, cur_vel.y - dt*gradPy);
+  vec2 new_vel = vec2(cur_vel.x - dt * gradPx, cur_vel.y - dt * gradPy);
 
-    gl_FragColor = vec4(new_vel, 0.0, 1.0);
+  gl_FragColor = vec4(new_vel, 0.0, 1.0);
 }`;
 
 const mouseShaderStr = `
@@ -389,32 +387,17 @@ precision highp float;
 
 varying vec2 v_uv;
 
-uniform vec2 c_size;
-uniform vec2 t_size;
 uniform sampler2D velocity;
-uniform sampler2D colors;
-uniform float dt; 
-
-vec4 bilerp(sampler2D sam, vec2 uv) {
-    vec2 p_uv = uv * c_size;
-    vec2 weights = fract(p_uv);
-    vec2 floored_uv = floor(p_uv) / c_size;
-    vec4 a = texture2D(sam, floored_uv); 
-    vec4 b = texture2D(sam, floored_uv + vec2(1.0, 0.0) * t_size);
-    vec4 c = texture2D(sam, floored_uv + vec2(0.0, 1.0) * t_size);
-    vec4 d = texture2D(sam, floored_uv + vec2(1.0, 1.0) * t_size);
-    return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
-}
 
 void main() {
-    vec2 vel = texture2D(velocity, v_uv).xy;
-    float len = length(vel);
-    vel = vel * 0.5 + 0.5;
-    
-    vec3 color = vec3(vel.x, vel.y, 1.0);   
-    color = clamp(mix(vec3(1.0), color, len), 0.0, 1.0);
+  vec2 vel = texture2D(velocity, v_uv).xy;
+  float len = length(vel);
+  vel = vel * 0.5 + 0.5;
 
-    gl_FragColor = vec4(color,  1.0);
+  vec3 color = vec3(vel.x, vel.y, 1.0);
+  color = clamp(mix(vec3(1.0), color, len), 0.0, 1.0);
+
+  gl_FragColor = vec4(color, 1.0);
 }`;
 
 const colorPrevShaderStr = `
@@ -426,37 +409,27 @@ uniform vec2 c_size;
 uniform vec2 t_size;
 uniform sampler2D velocity;
 uniform sampler2D colors;
-uniform float dt; 
+uniform float dt;
 
 vec4 bilerp(sampler2D sam, vec2 uv) {
-    vec2 p_uv = uv * c_size;
-    vec2 weights = fract(p_uv);
-    vec2 floored_uv = floor(p_uv) / c_size;
-    vec4 a = texture2D(sam, floored_uv); 
-    vec4 b = texture2D(sam, floored_uv + vec2(1.0, 0.0) * t_size);
-    vec4 c = texture2D(sam, floored_uv + vec2(0.0, 1.0) * t_size);
-    vec4 d = texture2D(sam, floored_uv + vec2(1.0, 1.0) * t_size);
-    return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
+  vec2 p_uv = uv * c_size;
+  vec2 weights = fract(p_uv);
+  vec2 floored_uv = floor(p_uv) / c_size;
+  vec4 a = texture2D(sam, floored_uv);
+  vec4 b = texture2D(sam, floored_uv + vec2(1.0, 0.0) * t_size);
+  vec4 c = texture2D(sam, floored_uv + vec2(0.0, 1.0) * t_size);
+  vec4 d = texture2D(sam, floored_uv + vec2(1.0, 1.0) * t_size);
+  return mix(mix(a, b, weights.x), mix(c, d, weights.x), weights.y);
 }
 
 void main() {
-  //vec2 vel = bilerp(velocity, v_uv).xy;
-  //vec2 vel = texture2D(velocity, v_uv).xy;
-  //float color = length(vel);
-  //float color = vel.x;
-  //float color = texture2D(velocity, v_uv).x;
-  
-  //gl_FragColor = vec4(0.0, color, 0.0, 1.0);
-
   vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
   vec4 color;
-  if (length(texture2D(velocity, v_uv).xy) < 0.000001){
+  if(length(texture2D(velocity, v_uv).xy) < 0.000001) {
     color = texture2D(colors, prev_uv);
   } else {
     color = bilerp(colors, prev_uv);
   }
-  //vec4 color = texture2D(colors, prev_uv); 
-  //vec4 color = bilerp(colors, prev_uv); 
   gl_FragColor = color;
 }`;
 

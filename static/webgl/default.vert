@@ -3,8 +3,6 @@ varying vec2 v_uv;
 varying vec2 v_pos;
 
 void main() {
-  // We need to negate the y coordinate because p5.js has (0,0) defined
-  // in the bottom left corner while WebGL has it in the top left corner.
   v_uv = aPosition;
 
   // WebGL canvas ranges from -1 to 1 for both x and y.

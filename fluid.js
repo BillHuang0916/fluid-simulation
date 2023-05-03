@@ -671,7 +671,7 @@ function render() {
 
 function main() {
     var image = new Image();
-    image.src = "./image2.jpg"
+    image.src = "./image.jpg"
     image.onload = function(){
         setup(image);
         requestAnimationFrame(render);

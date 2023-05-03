@@ -1,5 +1,5 @@
-const dt = 0.01;
-const forceAmplifier = 1 / 20;
+const dt = 0.0133;
+const forceAmplifier = .02;
 const DIFFUSION_STEPS = 5;
 const PRESSURE_STEPS = 5;
 const mouseEffectRadius = 100;
@@ -248,10 +248,8 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 }
 
 void main(){
-    vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
-    vec4 advection = texture2D(velocity, prev_uv);
-    // vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
-    // vec4 advection = texture2D(velocity, prev_uv);
+    vec2 prev_uv = v_uv - dt * bilerp(velocity, v_uv).xy;
+    vec4 advection = bilerp(velocity, prev_uv);
     gl_FragColor = advection;
 }`;
 
@@ -515,6 +513,8 @@ function render() {
         prevMousePos = mousePos;
     }
 
+    //start of advection
+
     // Bind Advection Program
     gl.useProgram(advectionProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[(velocitySwapped + 1) % 2].fbo);
@@ -527,6 +527,10 @@ function render() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
     velocitySwapped = !velocitySwapped;
+
+    //end of advection
+
+    //start of diffusion
 
     gl.useProgram(fillFromSourceProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[diffusionSwapped % 2].fbo);
@@ -564,6 +568,10 @@ function render() {
     gl.uniform1i(fillFromSourceProgram.uniforms.source, 0);
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    //end of diffusion
+
+    //start of pressure
 
     // Bind Divergence Program
     gl.useProgram(divergenceProgram.program);
@@ -618,6 +626,8 @@ function render() {
     gl.drawArrays(gl.TRIANGLES, 0, 6);
     gl.viewport(0, 0, canvas.width, canvas.height);
     velocitySwapped = !velocitySwapped;
+
+    //end of pressure
 
     // Bind Color Program
     gl.useProgram(colorProgram.program);

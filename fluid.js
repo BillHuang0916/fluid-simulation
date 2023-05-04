@@ -39,6 +39,8 @@ let vMousePos = null;
 let mousePos = null;
 let prevMousePos = null;
 
+let imageMode = false;
+
 
 function getCursorPosition(canvas, event) {
     const rect = canvas.getBoundingClientRect();
@@ -429,7 +431,7 @@ vec4 bilerp(sampler2D sam, vec2 uv) {
 void main() {
   vec2 prev_uv = v_uv - dt * texture2D(velocity, v_uv).xy;
   vec4 color;
-  if(length(texture2D(velocity, v_uv).xy) < 0.000001) {
+  if(length(texture2D(velocity, v_uv).xy) < 0.0001) {
     color = texture2D(colors, prev_uv);
   } else {
     color = bilerp(colors, prev_uv);
@@ -527,6 +529,7 @@ function setup(image) {
     fillColorProgram = new Program(vertexShader, fillColorShader);
     vBoundaryProgram = new Program(vertexShader, velocityBoundaryShader);
     zBoundaryProgram = new Program(vertexShader, zeroBoundaryShader);
+    colorPrevProgram = new Program(vertexShader, colorPrevShader);
 
     divergenceFbo = new FBO(gl.FLOAT);
     colorFbos = [new FBO(gl.UNSIGNED_BYTE), new FBO(gl.UNSIGNED_BYTE)];
@@ -731,16 +734,34 @@ function render() {
     //end of pressure
 
     // Bind Color Program
-    gl.useProgram(colorProgram.program);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped + 1) % 2].fbo);
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-    gl.uniform1i(colorProgram.uniforms.velocity, 0);
-    gl.uniform2fv(colorProgram.uniforms.c_size, [canvas.width, canvas.height]);
-    gl.uniform2fv(colorProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
-    gl.drawArrays(gl.TRIANGLES, 0, 6);
-    gl.viewport(0, 0, canvas.width, canvas.height);
-    colorSwapped = !colorSwapped;
+    if (!imageMode){
+        gl.useProgram(colorProgram.program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped + 1) % 2].fbo);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+        gl.uniform1i(colorProgram.uniforms.velocity, 0);
+        gl.uniform2fv(colorProgram.uniforms.c_size, [canvas.width, canvas.height]);
+        gl.uniform2fv(colorProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        colorSwapped = !colorSwapped;
+    }
+    else{
+        gl.useProgram(colorPrevProgram.program);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped + 1) % 2].fbo);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+        gl.uniform1i(colorPrevProgram.uniforms.velocity, 0);
+        gl.activeTexture(gl.TEXTURE0 + 1);
+        gl.bindTexture(gl.TEXTURE_2D, colorFbos[colorSwapped % 2].texture);
+        gl.uniform1i(colorPrevProgram.uniforms.colors, 1);
+        gl.uniform2fv(colorPrevProgram.uniforms.c_size, [canvas.width, canvas.height]);
+        gl.uniform2fv(colorPrevProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+        gl.uniform1f(colorPrevProgram.uniforms.dt, dt);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        gl.viewport(0, 0, canvas.width, canvas.height);
+        colorSwapped = !colorSwapped;
+    }
 
     // Display
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -751,7 +772,7 @@ function render() {
 
 function main() {
     var image = new Image();
-    image.src = "./image2.jpg"
+    image.src = "image2.jpg"
     image.onload = function () {
         resizeCanvasToDisplaySize(canvas);
         setup(image);

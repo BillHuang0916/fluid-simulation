@@ -39,6 +39,7 @@ let vMousePos = null;
 let mousePos = null;
 let prevMousePos = null;
 let paused = false;
+let useViscosity = true;
 
 function setViscosity(input) {
     //console.log(input);
@@ -67,10 +68,10 @@ function setPressureSteps(input) {
     //console.log(input);
     pressureSteps = input; 
 }
-//dt
-//jacobi steps
-//mouse effect radius
-//viscosity toggle
+
+function toggleViscosity(input) {
+    useViscosity = !useViscosity;  
+}
 
 function reset() {
     gl.useProgram(fillProgram.program);
@@ -632,8 +633,6 @@ function enforceBoundaries(fbos, swapped) {
 function render() {
     //resizeCanvasToDisplaySize(canvas);
     // Clear the canvas
-    
-    
     gl.clearColor(0, 0, 0, 0);
     gl.clear(gl.COLOR_BUFFER_BIT);
 
@@ -676,44 +675,45 @@ function render() {
 
         //start of diffusion
 
-        gl.useProgram(fillFromSourceProgram.program);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[diffusionSwapped % 2].fbo);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-        gl.uniform1i(fillFromSourceProgram.uniforms.source, 0);
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
+        if (useViscosity) {
+            gl.useProgram(fillFromSourceProgram.program);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[diffusionSwapped % 2].fbo);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+            gl.uniform1i(fillFromSourceProgram.uniforms.source, 0);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
 
-        for (let i = 0; i < diffusionSteps; i++) {
-            // Bind Diffusion Calculation Program
-            gl.useProgram(diffusionProgram.program);
-            gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[(diffusionSwapped + 1) % 2].fbo);
+            for (let i = 0; i < diffusionSteps; i++) {
+                // Bind Diffusion Calculation Program
+                gl.useProgram(diffusionProgram.program);
+                gl.bindFramebuffer(gl.FRAMEBUFFER, diffusionFbos[(diffusionSwapped + 1) % 2].fbo);
 
+                gl.activeTexture(gl.TEXTURE0);
+                gl.bindTexture(gl.TEXTURE_2D, diffusionFbos[diffusionSwapped % 2].texture);
+                gl.uniform1i(diffusionProgram.uniforms.diffusion, 0);
+
+                gl.activeTexture(gl.TEXTURE0 + 1);
+                gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+                gl.uniform1i(diffusionProgram.uniforms.velocity, 1);
+
+                gl.uniform2fv(diffusionProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+                gl.uniform1f(diffusionProgram.uniforms.dt, dt);
+                gl.uniform1f(diffusionProgram.uniforms.viscosity, viscosity);
+                gl.drawArrays(gl.TRIANGLES, 0, 6);
+                gl.viewport(0, 0, canvas.width, canvas.height);
+                diffusionSwapped = !diffusionSwapped;
+                diffusionSwapped = enforceBoundaries(diffusionFbos, diffusionSwapped);
+            }
+
+            gl.useProgram(fillFromSourceProgram.program);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[velocitySwapped % 2].fbo);
             gl.activeTexture(gl.TEXTURE0);
             gl.bindTexture(gl.TEXTURE_2D, diffusionFbos[diffusionSwapped % 2].texture);
-            gl.uniform1i(diffusionProgram.uniforms.diffusion, 0);
-
-            gl.activeTexture(gl.TEXTURE0 + 1);
-            gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-            gl.uniform1i(diffusionProgram.uniforms.velocity, 1);
-
-            gl.uniform2fv(diffusionProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
-            gl.uniform1f(diffusionProgram.uniforms.dt, dt);
-            gl.uniform1f(diffusionProgram.uniforms.viscosity, viscosity);
-            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl.uniform1i(fillFromSourceProgram.uniforms.source, 0);
             gl.viewport(0, 0, canvas.width, canvas.height);
-            diffusionSwapped = !diffusionSwapped;
-            diffusionSwapped = enforceBoundaries(diffusionFbos, diffusionSwapped);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
         }
-
-        gl.useProgram(fillFromSourceProgram.program);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[velocitySwapped % 2].fbo);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, diffusionFbos[diffusionSwapped % 2].texture);
-        gl.uniform1i(fillFromSourceProgram.uniforms.source, 0);
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-
         //end of diffusion
 
         //start of pressure

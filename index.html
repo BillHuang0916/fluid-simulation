@@ -1,0 +1,923 @@
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+
+<head>
+    <style>
+        body {
+            background-color: #404040;
+            background-color: white;
+            padding: 100px;
+            width: 1000px;
+            margin: auto;
+            text-align: left;
+            font-weight: 300;
+            font-family: 'Open Sans', sans-serif;
+            color: #121212;
+            line-height: 2em;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4 {
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+
+        kbd {
+            color: #121212;
+        }
+
+        blockquote {
+            color: #888;
+            border: 2px solid #333;
+            padding: 10px;
+            background-color: #ccc;
+        }
+
+        table.custom-tbl {
+            border: 1px solid;
+        }
+
+        table.custom-tbl th {
+            border: 1px solid;
+            background-color: rgb(99, 209, 209);
+        }
+
+        table.custom-tbl td {
+            border: 1px solid;
+            background-color: #f1e686a8;
+        }
+    </style>
+
+    <title>2D Grid Based Fluid Dynamics Simulation</title>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
+    <!-- Not using below due to lacking bold fontfaces -->
+    <!-- <link href="https://fonts.googleapis.com/css?family=Open+Sans|Source+Sans+Pro|Source+Sans+Pro:400,700" rel="stylesheet"> -->
+    <link href="https://fonts.googleapis.com/css?family=Roboto+Mono|Roboto+Slab|Roboto:300,400,500,700"
+        rel="stylesheet">
+
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']]
+            }
+        };
+    </script>
+    <script id="MathJax-script" async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js">
+    </script>
+    <style type="text/css">
+        .CtxtMenu_InfoClose {
+            top: .2em;
+            right: .2em;
+        }
+
+        .CtxtMenu_InfoContent {
+            overflow: auto;
+            text-align: left;
+            font-size: 80%;
+            padding: .4em .6em;
+            border: 1px inset;
+            margin: 1em 0px;
+            max-height: 20em;
+            max-width: 30em;
+            background-color: #EEEEEE;
+            white-space: normal;
+        }
+
+        .CtxtMenu_Info.CtxtMenu_MousePost {
+            outline: none;
+        }
+
+        .CtxtMenu_Info {
+            position: fixed;
+            left: 50%;
+            width: auto;
+            text-align: center;
+            border: 3px outset;
+            padding: 1em 2em;
+            background-color: #DDDDDD;
+            color: black;
+            cursor: default;
+            font-family: message-box;
+            font-size: 120%;
+            font-style: normal;
+            text-indent: 0;
+            text-transform: none;
+            line-height: normal;
+            letter-spacing: normal;
+            word-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            float: none;
+            z-index: 201;
+            border-radius: 15px;
+            /* Opera 10.5 and IE9 */
+            -webkit-border-radius: 15px;
+            /* Safari and Chrome */
+            -moz-border-radius: 15px;
+            /* Firefox */
+            -khtml-border-radius: 15px;
+            /* Konqueror */
+            box-shadow: 0px 10px 20px #808080;
+            /* Opera 10.5 and IE9 */
+            -webkit-box-shadow: 0px 10px 20px #808080;
+            /* Safari 3 & Chrome */
+            -moz-box-shadow: 0px 10px 20px #808080;
+            /* Forefox 3.5 */
+            -khtml-box-shadow: 0px 10px 20px #808080;
+            /* Konqueror */
+            filter: progid:DXImageTransform.Microsoft.dropshadow(OffX=2, OffY=2, Color="gray", Positive="true");
+            /* IE */
+        }
+    </style>
+    <style type="text/css">
+        .CtxtMenu_MenuClose {
+            position: absolute;
+            cursor: pointer;
+            display: inline-block;
+            border: 2px solid #AAA;
+            border-radius: 18px;
+            -webkit-border-radius: 18px;
+            /* Safari and Chrome */
+            -moz-border-radius: 18px;
+            /* Firefox */
+            -khtml-border-radius: 18px;
+            /* Konqueror */
+            font-family: "Courier New", Courier;
+            font-size: 24px;
+            color: #F0F0F0
+        }
+
+        .CtxtMenu_MenuClose span {
+            display: block;
+            background-color: #AAA;
+            border: 1.5px solid;
+            border-radius: 18px;
+            -webkit-border-radius: 18px;
+            /* Safari and Chrome */
+            -moz-border-radius: 18px;
+            /* Firefox */
+            -khtml-border-radius: 18px;
+            /* Konqueror */
+            line-height: 0;
+            padding: 8px 0 6px
+                /* may need to be browser-specific */
+        }
+
+        .CtxtMenu_MenuClose:hover {
+            color: white !important;
+            border: 2px solid #CCC !important
+        }
+
+        .CtxtMenu_MenuClose:hover span {
+            background-color: #CCC !important
+        }
+
+        .CtxtMenu_MenuClose:hover:focus {
+            outline: none
+        }
+    </style>
+    <style type="text/css">
+        .CtxtMenu_Menu {
+            position: absolute;
+            background-color: white;
+            color: black;
+            width: auto;
+            padding: 5px 0px;
+            border: 1px solid #CCCCCC;
+            margin: 0;
+            cursor: default;
+            font: menu;
+            text-align: left;
+            text-indent: 0;
+            text-transform: none;
+            line-height: normal;
+            letter-spacing: normal;
+            word-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            float: none;
+            z-index: 201;
+            border-radius: 5px;
+            /* Opera 10.5 and IE9 */
+            -webkit-border-radius: 5px;
+            /* Safari and Chrome */
+            -moz-border-radius: 5px;
+            /* Firefox */
+            -khtml-border-radius: 5px;
+            /* Konqueror */
+            box-shadow: 0px 10px 20px #808080;
+            /* Opera 10.5 and IE9 */
+            -webkit-box-shadow: 0px 10px 20px #808080;
+            /* Safari 3 & Chrome */
+            -moz-box-shadow: 0px 10px 20px #808080;
+            /* Forefox 3.5 */
+            -khtml-box-shadow: 0px 10px 20px #808080;
+            /* Konqueror */
+        }
+
+        .CtxtMenu_MenuItem {
+            padding: 1px 2em;
+            background: transparent;
+        }
+
+        .CtxtMenu_MenuArrow {
+            position: absolute;
+            right: .5em;
+            padding-top: .25em;
+            color: #666666;
+            font-family: null;
+            font-size: .75em
+        }
+
+        .CtxtMenu_MenuActive .CtxtMenu_MenuArrow {
+            color: white
+        }
+
+        .CtxtMenu_MenuArrow.CtxtMenu_RTL {
+            left: .5em;
+            right: auto
+        }
+
+        .CtxtMenu_MenuCheck {
+            position: absolute;
+            left: .7em;
+            font-family: null
+        }
+
+        .CtxtMenu_MenuCheck.CtxtMenu_RTL {
+            right: .7em;
+            left: auto
+        }
+
+        .CtxtMenu_MenuRadioCheck {
+            position: absolute;
+            left: .7em;
+        }
+
+        .CtxtMenu_MenuRadioCheck.CtxtMenu_RTL {
+            right: .7em;
+            left: auto
+        }
+
+        .CtxtMenu_MenuInputBox {
+            padding-left: 1em;
+            right: .5em;
+            color: #666666;
+            font-family: null;
+        }
+
+        .CtxtMenu_MenuInputBox.CtxtMenu_RTL {
+            left: .1em;
+        }
+
+        .CtxtMenu_MenuComboBox {
+            left: .1em;
+            padding-bottom: .5em;
+        }
+
+        .CtxtMenu_MenuSlider {
+            left: .1em;
+        }
+
+        .CtxtMenu_SliderValue {
+            position: absolute;
+            right: .1em;
+            padding-top: .25em;
+            color: #333333;
+            font-size: .75em
+        }
+
+        .CtxtMenu_SliderBar {
+            outline: none;
+            background: #d3d3d3
+        }
+
+        .CtxtMenu_MenuLabel {
+            padding: 1px 2em 3px 1.33em;
+            font-style: italic
+        }
+
+        .CtxtMenu_MenuRule {
+            border-top: 1px solid #DDDDDD;
+            margin: 4px 3px;
+        }
+
+        .CtxtMenu_MenuDisabled {
+            color: GrayText
+        }
+
+        .CtxtMenu_MenuActive {
+            background-color: #606872;
+            color: white;
+        }
+
+        .CtxtMenu_MenuDisabled:focus {
+            background-color: #E8E8E8
+        }
+
+        .CtxtMenu_MenuLabel:focus {
+            background-color: #E8E8E8
+        }
+
+        .CtxtMenu_ContextMenu:focus {
+            outline: none
+        }
+
+        .CtxtMenu_ContextMenu .CtxtMenu_MenuItem:focus {
+            outline: none
+        }
+
+        .CtxtMenu_SelectionMenu {
+            position: relative;
+            float: left;
+            border-bottom: none;
+            -webkit-box-shadow: none;
+            -webkit-border-radius: 0px;
+        }
+
+        .CtxtMenu_SelectionItem {
+            padding-right: 1em;
+        }
+
+        .CtxtMenu_Selection {
+            right: 40%;
+            width: 50%;
+        }
+
+        .CtxtMenu_SelectionBox {
+            padding: 0em;
+            max-height: 20em;
+            max-width: none;
+            background-color: #FFFFFF;
+        }
+
+        .CtxtMenu_SelectionDivider {
+            clear: both;
+            border-top: 2px solid #000000;
+        }
+
+        .CtxtMenu_Menu .CtxtMenu_MenuClose {
+            top: -10px;
+            left: -10px
+        }
+    </style>
+    <style id="MJX-CHTML-styles">
+        mjx-container[jax="CHTML"] {
+            line-height: 0;
+        }
+
+        mjx-container [space="1"] {
+            margin-left: .111em;
+        }
+
+        mjx-container [space="2"] {
+            margin-left: .167em;
+        }
+
+        mjx-container [space="3"] {
+            margin-left: .222em;
+        }
+
+        mjx-container [space="4"] {
+            margin-left: .278em;
+        }
+
+        mjx-container [space="5"] {
+            margin-left: .333em;
+        }
+
+        mjx-container [rspace="1"] {
+            margin-right: .111em;
+        }
+
+        mjx-container [rspace="2"] {
+            margin-right: .167em;
+        }
+
+        mjx-container [rspace="3"] {
+            margin-right: .222em;
+        }
+
+        mjx-container [rspace="4"] {
+            margin-right: .278em;
+        }
+
+        mjx-container [rspace="5"] {
+            margin-right: .333em;
+        }
+
+        mjx-container [size="s"] {
+            font-size: 70.7%;
+        }
+
+        mjx-container [size="ss"] {
+            font-size: 50%;
+        }
+
+        mjx-container [size="Tn"] {
+            font-size: 60%;
+        }
+
+        mjx-container [size="sm"] {
+            font-size: 85%;
+        }
+
+        mjx-container [size="lg"] {
+            font-size: 120%;
+        }
+
+        mjx-container [size="Lg"] {
+            font-size: 144%;
+        }
+
+        mjx-container [size="LG"] {
+            font-size: 173%;
+        }
+
+        mjx-container [size="hg"] {
+            font-size: 207%;
+        }
+
+        mjx-container [size="HG"] {
+            font-size: 249%;
+        }
+
+        mjx-container [width="full"] {
+            width: 100%;
+        }
+
+        mjx-box {
+            display: inline-block;
+        }
+
+        mjx-block {
+            display: block;
+        }
+
+        mjx-itable {
+            display: inline-table;
+        }
+
+        mjx-row {
+            display: table-row;
+        }
+
+        mjx-row>* {
+            display: table-cell;
+        }
+
+        mjx-mtext {
+            display: inline-block;
+        }
+
+        mjx-mstyle {
+            display: inline-block;
+        }
+
+        mjx-merror {
+            display: inline-block;
+            color: red;
+            background-color: yellow;
+        }
+
+        mjx-mphantom {
+            visibility: hidden;
+        }
+
+        _::-webkit-full-page-media,
+        _:future,
+        :root mjx-container {
+            will-change: opacity;
+        }
+
+        mjx-assistive-mml {
+            position: absolute !important;
+            top: 0px;
+            left: 0px;
+            clip: rect(1px, 1px, 1px, 1px);
+            padding: 1px 0px 0px 0px !important;
+            border: 0px !important;
+            display: block !important;
+            width: auto !important;
+            overflow: hidden !important;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        mjx-assistive-mml[display="block"] {
+            width: 100% !important;
+        }
+
+        mjx-c::before {
+            display: block;
+            width: 0;
+        }
+
+        .MJX-TEX {
+            font-family: MJXZERO, MJXTEX;
+        }
+
+        .TEX-B {
+            font-family: MJXZERO, MJXTEX-B;
+        }
+
+        .TEX-I {
+            font-family: MJXZERO, MJXTEX-I;
+        }
+
+        .TEX-MI {
+            font-family: MJXZERO, MJXTEX-MI;
+        }
+
+        .TEX-BI {
+            font-family: MJXZERO, MJXTEX-BI;
+        }
+
+        .TEX-S1 {
+            font-family: MJXZERO, MJXTEX-S1;
+        }
+
+        .TEX-S2 {
+            font-family: MJXZERO, MJXTEX-S2;
+        }
+
+        .TEX-S3 {
+            font-family: MJXZERO, MJXTEX-S3;
+        }
+
+        .TEX-S4 {
+            font-family: MJXZERO, MJXTEX-S4;
+        }
+
+        .TEX-A {
+            font-family: MJXZERO, MJXTEX-A;
+        }
+
+        .TEX-C {
+            font-family: MJXZERO, MJXTEX-C;
+        }
+
+        .TEX-CB {
+            font-family: MJXZERO, MJXTEX-CB;
+        }
+
+        .TEX-FR {
+            font-family: MJXZERO, MJXTEX-FR;
+        }
+
+        .TEX-FRB {
+            font-family: MJXZERO, MJXTEX-FRB;
+        }
+
+        .TEX-SS {
+            font-family: MJXZERO, MJXTEX-SS;
+        }
+
+        .TEX-SSB {
+            font-family: MJXZERO, MJXTEX-SSB;
+        }
+
+        .TEX-SSI {
+            font-family: MJXZERO, MJXTEX-SSI;
+        }
+
+        .TEX-SC {
+            font-family: MJXZERO, MJXTEX-SC;
+        }
+
+        .TEX-T {
+            font-family: MJXZERO, MJXTEX-T;
+        }
+
+        .TEX-V {
+            font-family: MJXZERO, MJXTEX-V;
+        }
+
+        .TEX-VB {
+            font-family: MJXZERO, MJXTEX-VB;
+        }
+
+        mjx-stretchy-v mjx-c,
+        mjx-stretchy-h mjx-c {
+            font-family: MJXZERO, MJXTEX-S1, MJXTEX-S4, MJXTEX, MJXTEX-A ! important;
+        }
+
+        @font-face
+
+        /* 0 */
+            {
+            font-family: MJXZERO;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Zero.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 1 */
+            {
+            font-family: MJXTEX;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Main-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 2 */
+            {
+            font-family: MJXTEX-B;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Main-Bold.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 3 */
+            {
+            font-family: MJXTEX-I;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Math-Italic.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 4 */
+            {
+            font-family: MJXTEX-MI;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Main-Italic.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 5 */
+            {
+            font-family: MJXTEX-BI;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Math-BoldItalic.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 6 */
+            {
+            font-family: MJXTEX-S1;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Size1-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 7 */
+            {
+            font-family: MJXTEX-S2;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Size2-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 8 */
+            {
+            font-family: MJXTEX-S3;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Size3-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 9 */
+            {
+            font-family: MJXTEX-S4;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Size4-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 10 */
+            {
+            font-family: MJXTEX-A;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_AMS-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 11 */
+            {
+            font-family: MJXTEX-C;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Calligraphic-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 12 */
+            {
+            font-family: MJXTEX-CB;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Calligraphic-Bold.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 13 */
+            {
+            font-family: MJXTEX-FR;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Fraktur-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 14 */
+            {
+            font-family: MJXTEX-FRB;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Fraktur-Bold.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 15 */
+            {
+            font-family: MJXTEX-SS;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_SansSerif-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 16 */
+            {
+            font-family: MJXTEX-SSB;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_SansSerif-Bold.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 17 */
+            {
+            font-family: MJXTEX-SSI;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_SansSerif-Italic.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 18 */
+            {
+            font-family: MJXTEX-SC;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Script-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 19 */
+            {
+            font-family: MJXTEX-T;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Typewriter-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 20 */
+            {
+            font-family: MJXTEX-V;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Vector-Regular.woff") format("woff");
+        }
+
+        @font-face
+
+        /* 21 */
+            {
+            font-family: MJXTEX-VB;
+            src: url("https://cdn.jsdelivr.net/npm/mathjax@3/es5/output/chtml/fonts/woff-v2/MathJax_Vector-Bold.woff") format("woff");
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
+    <h1 align="middle">2D Grid Based Fluid Dynamics Simulation</h1>
+    <h2 align="middle">Andrew Zhang</h2>
+    <h2 align="middle">Tyler Rathkamp</h2>
+    <h2 align="middle">Parth Mahawar</h2>
+    <h2 align="middle">Billy Huang</h2>
+
+    <br>
+
+    <div>
+        <h2 align="middle">Abstract</h2>
+        <p>
+            In this project we implemented a 2-dimensional simulation of an incompressible fluid, based on the 1999
+            paper “Stable Fluids” by Jos Stam. Incompressible fluid here means that changes in pressure don’t change the
+            volume of our fluid, or more precisely, the divergence (net in/out flow) of the fluid at every position is
+            always zero. The resulting demo is available here. The demo is written in Javascript and WebGL.
+        </p>
+    </div>
+
+    <div>
+        <h2 align="middle">Technical Approach</h2>
+        <p>Our simulation initially starts with a grid of zero velocity and pressure, and an external force is added by
+            the user. Following the paper by Stam, we use the Navier-Stokes equation to model how velocities and
+            pressures change over time in our fluid simulation.The equation is shown below, with labeled terms:</p>
+        <p align="middle">
+            <img src="https://mofu-dev.com/images/blog/stable-fluids/fluid-images-en.jpg" height="200" width="700">
+        </p>
+        <p>
+
+            Advection is the process of moving velocities/particles through the velocity field over time. Viscosity
+            affects how fast forces propagate through a fluid and how a force is diffused away over time. External force
+            is any extra force that is not the result of fluid movement. Here, it is supplied using the mouse by simply
+            adding velocity to the field. After solving for these three terms, we then derive the new pressure, taking
+            advantage of the fact that incompressible fluids have zero divergence. Finally, with all of the forces
+            known, we update our velocity. As a complicated differential equation, and because our velocity and pressure
+            grids are discretized approximations of continuous fields, we cannot directly and exactly solve for these
+            terms, so all of our intermediate results are approximations, except for external force. Advection is
+            approximated by setting the velocity at a point (x,y) at time step t+1 equal to the velocity at a point (x -
+            dt*v(x), y - dt*v(y)j). Notice we subtract the current velocity from each point. This approximates movement
+            by guessing at time t+1, what point (i,j) at time step t would have moved into each new position (x,y).
+            However, since we only scale velocity by a constant factor, these backwards paths can only be linear, which
+            isn’t the case in real life. Despite the approximation, the result is that velocities are able to move
+            across our grid, which is the result of advection. This advected velocity is then the input to the next
+            term, viscosity. Both viscosity and pressure use the Laplacian ∇2. This is clear for viscosity, but for the
+            pressure term the Laplacian arises because we use the Helmholtz-Hodge decomposition to solve for pressure,
+            which states that ∇2 p = ∇u. Equations of the form Ax = b, (in this case the Lapacian operator can be
+            written as a matrix) can be solved iteratively using the Jacobi method, which is what we decided to use
+            following GPU gems. So both of these terms can be solved in the same way, and more iterations result in more
+            accurate simulations, but increase the computation needed for each time step. At the end of all this, we can
+            then add the terms up to get the velocity field at the next time step. Throughout this process, much of our
+            work was helped by the explanations found at [2], but some derivations we were unable to follow, and we
+            couldn’t get to work. Where those derivations failed, we followed [3], and that seemed to work. And for
+            descriptions on how parameters affected the simulation, and overall stability tips, we took advice from [4].
+            But of course, our first source was [1].
+
+
+        </p>
+    </div>
+
+    <div>
+        <h2 align="middle">Results</h2>
+        <p align="center">
+            <iframe width="420" height="345" src="https://www.youtube.com/embed/CMSzYlfRm6g" allowfullscreen="">
+            </iframe>
+        </p>
+        <div style="border-radius: 3px;border-color: black;">
+            <canvas id="fluid_sim" style="width: 100%; height: 480px;"></canvas>
+            <script src="fluid.js"></script>
+        </div>
+    </div>
+
+    <div>
+        <h2 align="middle">Problems</h2>
+        <p>
+            We originally wanted to use the p5.js library for our website and WebGL interface. But once our
+            implementation of advection was running, we ran into an issue with p5.js in which we were unable to pass
+            negative numbers between fragments. WebGL does have extensions to allow negative values, but we couldn’t use
+            these extensions with p5.js. We were able to remedy this by using the sigmoid function to map every value to
+            a number between 0 and 1, but we ultimately decided that this was a haphazard solution which may add
+            numerical instability. So in the end we decided to stop using p5.js and just use plain JavaScript in our
+            website. We also had trouble getting the simulation up and running in the first place, so we decided to
+            simplify the problem and see if we could get a simple, unoptimized solution working in Python. After that
+            was working, we then used the same logic in our WebGL code.
+
+        </p>
+    </div>
+
+    <div>
+        <h2 align="middle">Lessons Learned</h2>
+        <p>
+            A couple of lessons we learned was to not always jump in head first with the final implementation. Our first
+            attempt had errors on the website that could have come from a multitude of different sources. By writing a
+            rough prototype in Python, we were able to isolate Javascript/WebGL bugs from implementation bugs, and thus
+            split the work more efficiently and allow each person to only focus on one aspect of the project.
+
+        </p>
+    </div>
+
+    <div>
+        <h2 align="middle">References</h2>
+        <a href="https://mofu-dev.com/en/blog/stable-fluids/">
+            Stable Fluids with three.js by Misaki Nakano
+        </a>
+        <br>
+        <a href="https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf">
+            Stable Fluids by Jos Stam
+        </a>
+        <br>
+        <a
+            href="https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu">
+            Fast Fluid Dynamics Simulation on the GPU
+        </a>
+    </div>
+
+    <div>
+        <h2 align="middle">Contributions</h2>
+        <p>
+            <b>Andrew:</b> Wrote the Python version of the fluid sim, translated the code to WebGL, made the website UI,
+            co-wrote writeup. Wrote the viscosity shaders.
+        </p>
+        <p><b>Billy:</b> Wrote the P5.js prototype shaders and the current framework for running WebGL shaders.
+            Implemented the shaders for mouse interaction (external forces), advection, wall boundaries, and color and
+            co-wrote the shaders for divergence and pressure.</p>
+        <p><b>Parth:</b> Initial P5.js prototyping, writing some shaders, some UI elements and associated JavaScript
+            functions.</p>
+        <p><b>Tyler:</b> Helped with prototype, co-wrote milestone/final website, presentation</p>
+        </p>
+    </div>
+
+
+
+</body>
+<div id="simplifyJobsContainer"><span></span></div>
+
+</html>

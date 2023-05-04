@@ -41,7 +41,29 @@ let prevMousePos = null;
 let paused = false;
 let useViscosity = true;
 
-let imageMode = false;
+let imageMode = true;
+let image;
+let images = ["image.jpg", "image2.jpg", "image3.png", "image4.png"];
+let imageIndex = 0;
+
+function imageToggle(){
+    imageMode = !imageMode;
+    reset();
+}
+function cycleImage(){
+    imageIndex += 1;
+    imageIndex = imageIndex%images.length;
+    console.log(imageIndex);
+
+    img2 = new Image();
+    img2.src = images[imageIndex];
+    console.log(img2.src);
+    img2.onload = function () {
+        console.log("here");
+        setup(img2);
+        image = img2;
+    };
+}
 
 function setViscosity(input) {
     //console.log(input);
@@ -76,12 +98,14 @@ function toggleViscosity(input) {
 }
 
 function reset() {
-    gl.useProgram(fillProgram.program);
+    /*gl.useProgram(fillProgram.program);
     gl.bindFramebuffer(gl.FRAMEBUFFER, velocityFbos[velocitySwapped % 2].fbo);
     gl.uniform4fv(fillProgram.uniforms.color, [0.0, 0.0, 0.0, 1.0]);
     gl.viewport(0, 0, canvas.width, canvas.height);
     gl.drawArrays(gl.TRIANGLES, 0, 6);
-    pressureInit = false;
+    pressureInit = false;*/
+
+    setup(image);
 }
 
 
@@ -637,10 +661,11 @@ function enforceBoundaries(fbos, swapped) {
 function render() {
     //resizeCanvasToDisplaySize(canvas);
     // Clear the canvas
-    gl.clearColor(0, 0, 0, 0);
-    gl.clear(gl.COLOR_BUFFER_BIT);
 
     if(!paused){
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+
         if (mouseHeld && force != null) {
             // Bind Field Program
             gl.useProgram(fieldProgram.program);
@@ -779,35 +804,36 @@ function render() {
         velocitySwapped = enforceBoundaries(velocityFbos, velocitySwapped);
 
         //end of pressure
-    }
+    
     // Bind Color Program
-    if (!imageMode){
-        gl.useProgram(colorProgram.program);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped + 1) % 2].fbo);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-        gl.uniform1i(colorProgram.uniforms.velocity, 0);
-        gl.uniform2fv(colorProgram.uniforms.c_size, [canvas.width, canvas.height]);
-        gl.uniform2fv(colorProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        colorSwapped = !colorSwapped;
-    }
-    else{
-        gl.useProgram(colorPrevProgram.program);
-        gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped + 1) % 2].fbo);
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
-        gl.uniform1i(colorPrevProgram.uniforms.velocity, 0);
-        gl.activeTexture(gl.TEXTURE0 + 1);
-        gl.bindTexture(gl.TEXTURE_2D, colorFbos[colorSwapped % 2].texture);
-        gl.uniform1i(colorPrevProgram.uniforms.colors, 1);
-        gl.uniform2fv(colorPrevProgram.uniforms.c_size, [canvas.width, canvas.height]);
-        gl.uniform2fv(colorPrevProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
-        gl.uniform1f(colorPrevProgram.uniforms.dt, dt);
-        gl.drawArrays(gl.TRIANGLES, 0, 6);
-        gl.viewport(0, 0, canvas.width, canvas.height);
-        colorSwapped = !colorSwapped;
+        if (!imageMode){
+            gl.useProgram(colorProgram.program);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped + 1) % 2].fbo);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+            gl.uniform1i(colorProgram.uniforms.velocity, 0);
+            gl.uniform2fv(colorProgram.uniforms.c_size, [canvas.width, canvas.height]);
+            gl.uniform2fv(colorProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            colorSwapped = !colorSwapped;
+        }
+        else{
+            gl.useProgram(colorPrevProgram.program);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, colorFbos[(colorSwapped + 1) % 2].fbo);
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, velocityFbos[velocitySwapped % 2].texture);
+            gl.uniform1i(colorPrevProgram.uniforms.velocity, 0);
+            gl.activeTexture(gl.TEXTURE0 + 1);
+            gl.bindTexture(gl.TEXTURE_2D, colorFbos[colorSwapped % 2].texture);
+            gl.uniform1i(colorPrevProgram.uniforms.colors, 1);
+            gl.uniform2fv(colorPrevProgram.uniforms.c_size, [canvas.width, canvas.height]);
+            gl.uniform2fv(colorPrevProgram.uniforms.t_size, [1.0 / canvas.width, 1.0 / canvas.height]);
+            gl.uniform1f(colorPrevProgram.uniforms.dt, dt);
+            gl.drawArrays(gl.TRIANGLES, 0, 6);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            colorSwapped = !colorSwapped;
+        }
     }
 
     // Display
@@ -818,8 +844,8 @@ function render() {
 }
 
 function main() {
-    var image = new Image();
-    image.src = "image2.jpg"
+    image = new Image();
+    image.src = images[0];
     image.onload = function () {
         resizeCanvasToDisplaySize(canvas);
         setup(image);

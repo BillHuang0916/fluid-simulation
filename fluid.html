@@ -25,16 +25,159 @@
         width: 100%;
         height: 100%;
     }
+    .uiBox {
+        font-family: 'Rubik', sans-serif;
+        position: absolute;
+        right: 10px;
+        top: 10px;
+        background-color: rgba(210, 216, 224, 0.5);
+        padding: 5px;
+        padding-top: 10px;
+        padding-bottom: 10px;
+        border-radius: 20px;
+        box-shadow: 5px 5px 5px rgb(0 0 0 / 0.1);
+    }
+
+    input[type=number] {
+        width: 90px;
+        margin-bottom: 5px;
+        box-sizing: border-box;
+        font-family : inherit;
+        font-size: 1em;
+        border-radius: 3px;border-color: white;
+        border: none;
+        padding: 5px;
+        background-color: #ffffff;
+    }
+
+    button {
+        width: 100%;
+        margin-top: 5px;
+        box-sizing: border-box;
+        font-family : inherit;
+        font-size: 1em;
+        padding: 5px;
+        border: none;
+        background: white;
+        transition-duration: 0.1s;
+        border-radius: 5px;
+    }
+
+    button:hover {
+        background: #a3a3a3;
+    }
 </style>
 
 <head>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@300&display=swap" rel="stylesheet">
 </head>
 
 <body>
     <div class="container">
         <canvas id="fluid_sim" width="1280" height="720"></canvas>
     </div>
+    
     <script src="fluid.js"></script>
+    <div class="uiBox">
+        <table style="border-spacing: 10px 0;">
+        <tr>
+            <td>
+                Viscosity: 
+            </td>
+            <td>
+                <input type="number" name="viscosityBox" value="100" id="viscosityBox">
+            </td>
+        </tr>
+        <tr>
+            <td>
+                dt:
+            </td>
+            <td>
+                <input type="number" name="dtBox" value="0.0133" id="dtBox">
+            </td>
+        </tr>
+        <tr>
+            <td>
+                Mouse Radius: 
+            </td>
+            <td>
+                <input type="number" name="mrBox" value="100" id="mrBox">
+            </td>
+        </tr>
+        <tr>
+            <td>
+                Diffusion Steps:
+            </td>
+            <td>
+                <input type="number" name="diffusionBox" value="5" id="diffusionBox">
+            </td>
+        </tr>
+        <tr>
+            <td>
+                Pressure Steps: 
+            </td>
+            <td>
+                <input type="number" name="pressureBox" value="5" id="pressureBox">
+            </td>
+        </tr>
+        <tr>
+            <td style="text-align: center;">
+                <button onclick="toggleViscosity()">Toggle Viscosity</button>
+            </td>
+            <td style="text-align: center;">
+                <button onclick="playPause()">Play/Pause</button>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" style="text-align: center;">
+                <button onclick="reset()">Reset</button>
+            </td>
+        </tr>
+            <script type="text/javascript">
+                var vBox = document.getElementById("viscosityBox");
+                vBox.addEventListener("keydown", function (e) {
+                    if (e.keyCode === 13) {
+                        setViscosity(vBox.value);
+                        document.activeElement.blur();
+                    }
+                });
+
+                var dtBox = document.getElementById("dtBox");
+                dtBox.addEventListener("keydown", function (e) {
+                    if (e.keyCode === 13) {
+                        setdt(dtBox.value);
+                        document.activeElement.blur();
+                    }
+                });
+
+                var mrBox = document.getElementById("mrBox");
+                mrBox.addEventListener("keydown", function (e) {
+                    if (e.keyCode === 13) {
+                        setMouseRadius(mrBox.value);
+                        document.activeElement.blur();
+                    }
+                });
+
+                var diffBox = document.getElementById("diffusionBox");
+                diffBox.addEventListener("keydown", function (e) {
+                    if (e.keyCode === 13) {
+                        setDiffSteps(diffBox.value);
+                        document.activeElement.blur();
+                    }
+                });
+
+                var pressureBox = document.getElementById("pressureBox");
+                pressureBox.addEventListener("keydown", function (e) {
+                    if (e.keyCode === 13) {
+                        setPressureSteps(pressureBox.value);
+                        document.activeElement.blur();
+                    }
+                });
+            </script>
+        </table>
+    </div>
 </body>
 
 </html>

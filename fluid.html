@@ -39,7 +39,7 @@
     }
 
     input[type=number] {
-        width: 80px;
+        width: 90px;
         margin-bottom: 5px;
         box-sizing: border-box;
         font-family : inherit;
@@ -87,7 +87,7 @@
                 Viscosity: 
             </td>
             <td>
-                <input type="number" name="velocityBox" value="100" id="velocityBox">
+                <input type="number" name="viscosityBox" value="100" id="viscosityBox">
             </td>
         </tr>
         <tr>
@@ -136,10 +136,11 @@
             </td>
         </tr>
             <script type="text/javascript">
-                var vBox = document.getElementById("velocityBox");
+                var vBox = document.getElementById("viscosityBox");
                 vBox.addEventListener("keydown", function (e) {
                     if (e.keyCode === 13) {
                         setViscosity(vBox.value);
+                        document.activeElement.blur();
                     }
                 });
 
@@ -147,6 +148,7 @@
                 dtBox.addEventListener("keydown", function (e) {
                     if (e.keyCode === 13) {
                         setdt(dtBox.value);
+                        document.activeElement.blur();
                     }
                 });
 
@@ -154,6 +156,7 @@
                 mrBox.addEventListener("keydown", function (e) {
                     if (e.keyCode === 13) {
                         setMouseRadius(mrBox.value);
+                        document.activeElement.blur();
                     }
                 });
 
@@ -161,6 +164,7 @@
                 diffBox.addEventListener("keydown", function (e) {
                     if (e.keyCode === 13) {
                         setDiffSteps(diffBox.value);
+                        document.activeElement.blur();
                     }
                 });
 
@@ -168,6 +172,7 @@
                 pressureBox.addEventListener("keydown", function (e) {
                     if (e.keyCode === 13) {
                         setPressureSteps(pressureBox.value);
+                        document.activeElement.blur();
                     }
                 });
             </script>

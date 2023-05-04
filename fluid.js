@@ -4,7 +4,7 @@ let diffusionSteps = 5;
 let pressureSteps = 5;
 let mouseEffectRadius = 100;
 let viscosity = 100;
-const wall_size = 2;
+const wall_size = 10;
 
 let canvas = document.querySelector("#fluid_sim");
 let gl = canvas.getContext("webgl");
@@ -328,6 +328,7 @@ uniform sampler2D velocity;
 
 vec4 bilerp(sampler2D sam, vec2 uv) {
   vec2 p_uv = uv * c_size;
+  p_uv = p_uv + vec2(-0.5,-0.5);
   vec2 weights = fract(p_uv);
   vec2 floored_uv = floor(p_uv) / c_size;
   vec4 a = texture2D(sam, floored_uv);
@@ -489,6 +490,7 @@ uniform float dt;
 
 vec4 bilerp(sampler2D sam, vec2 uv) {
   vec2 p_uv = uv * c_size;
+  p_uv = p_uv + vec2(-0.5,-0.5);
   vec2 weights = fract(p_uv);
   vec2 floored_uv = floor(p_uv) / c_size;
   vec4 a = texture2D(sam, floored_uv);
@@ -746,6 +748,7 @@ function render() {
         //end of diffusion
 
         //start of pressure
+        pressureSwapped = enforceBoundaries(pressureFbos, pressureSwapped);
 
         // Bind Divergence Program
         gl.useProgram(divergenceProgram.program);

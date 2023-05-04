@@ -788,37 +788,33 @@
 
     <h1 align="middle">CS 184: Computer Graphics and Imaging, Spring 2023</h1>
     <h1 align="middle">2D Grid Based Fluid Dynamics Simulation</h1>
-    <h2 align="middle">Andrew Zhang</h2>
-    <h2 align="middle">Tyler Rathkamp</h2>
-    <h2 align="middle">Parth Mahawar</h2>
-    <h2 align="middle">Billy Huang</h2>
+    <h2 align="middle">Andrew Zhang, Billy Huang, Parth Mahawarm, Tyler Rathkamp</h2>
 
     <br>
 
     <div>
         <h2 align="middle">Abstract</h2>
         <p>
-            In this project we implemented a 2-dimensional simulation of an incompressible fluid, based on the 1999
-            paper “Stable Fluids” by Jos Stam. Incompressible fluid here means that changes in pressure don’t change the
-            volume of our fluid, or more precisely, the divergence (net in/out flow) of the fluid at every position is
-            always zero. The resulting demo is available here. The demo is written in Javascript and WebGL.
-        </p>
+            We implemented a 2-dimensional simulation of an incompressible fluid, based on the 1999 paper “Stable
+            Fluids” by Jos Stam. Our aim was to build a realistic simulation that could be ran in real time and in the
+            web browser. As a result, we wrote our simulation from scratch using only Javascript and WebGL. A live demo
+            is available <a href="fluid.html">here.</a></p>
     </div>
 
     <div>
         <h2 align="middle">Technical Approach</h2>
         <p>Our simulation initially starts with a grid of zero velocity and pressure, and an external force is added by
             the user. Following the paper by Stam, we use the Navier-Stokes equation to model how velocities and
-            pressures change over time in our fluid simulation.The equation is shown below, with labeled terms:</p>
+            pressures change over time in our fluid simulation. The equation is shown below, with labeled terms:</p>
         <p align="middle">
             <img src="https://mofu-dev.com/images/blog/stable-fluids/fluid-images-en.jpg" height="200" width="700">
         </p>
         <p>
-
             Advection is the process of moving velocities/particles through the velocity field over time. Viscosity
             affects how fast forces propagate through a fluid and how a force is diffused away over time. External force
             is any extra force that is not the result of fluid movement. Here, it is supplied using the mouse by simply
-            adding velocity to the field. After solving for these three terms, we then derive the new pressure, taking
+            adding velocity to the velocity field. After solving for these three terms, we then derive the new pressure,
+            taking
             advantage of the fact that incompressible fluids have zero divergence. Finally, with all of the forces
             known, we update our velocity. As a complicated differential equation, and because our velocity and pressure
             grids are discretized approximations of continuous fields, we cannot directly and exactly solve for these
@@ -840,20 +836,41 @@
             couldn’t get to work. Where those derivations failed, we followed [3], and that seemed to work. And for
             descriptions on how parameters affected the simulation, and overall stability tips, we took advice from [4].
             But of course, our first source was [1].
-
-
+        </p>
+        <h2 align="middle">WebGL Framework</h2>
+        <p>
+            In order to achieve real time simulation, we relied on WebGL shaders to preform the Navier-Stokes
+            calculations in parallel and on the GPU. Both the velocity and pressure grids were stored as a pair of
+            floating point textures: one for reading and one for writing to. We then split the Navier-Stokes equation
+            into separate shaders for field forces, advection, viscosity, divergence, and pressure and had their
+            respective programs update the fluid and pressure texture accordingly. Finally, we attached one final shader
+            to end of the pipeline to display our simulation.
+        </p>
+        <p>
+            To simplify our interactions with the WebGL API, we created utility functions to create the textures and a
+            separate Program object to store the locations of uniforms for each of the shaders. Furthermore, we heavily
+            used the WebGL Fundamentals ([4]) website to learn how to use and write WebGL shaders.
         </p>
     </div>
 
     <div>
         <h2 align="middle">Results</h2>
-        <p align="center">
-            <iframe width="420" height="345" src="https://www.youtube.com/embed/CMSzYlfRm6g" allowfullscreen="">
-            </iframe>
-        </p>
-        <div style="border-radius: 3px;border-color: black;">
-            <canvas id="fluid_sim" style="width: 100%; height: 480px;"></canvas>
+        <div></div>
+
+        <div>
+            <h3 align="middle">Live Demonstration</h3>
+            <canvas id="fluid_sim" style="width: 100%; height: 480px; outline: black 3px solid"></canvas>
+            <figcaption>Drag the mouse in the box above to test it out! A full demo can be found <a
+                    href="fluid.html">here.</a></figcaption>
             <script src="fluid.js"></script>
+        </div>
+        <div>
+            <h3 align="middle">Video Demonstration</h3>
+            <p align="center">
+                <iframe style="width: 100%; height: 480px;" src="https://www.youtube.com/embed/CMSzYlfRm6g"
+                    allowfullscreen="">
+                </iframe>
+            </p>
         </div>
     </div>
 
@@ -862,14 +879,16 @@
         <p>
             We originally wanted to use the p5.js library for our website and WebGL interface. But once our
             implementation of advection was running, we ran into an issue with p5.js in which we were unable to pass
-            negative numbers between fragments. WebGL does have extensions to allow negative values, but we couldn’t use
-            these extensions with p5.js. We were able to remedy this by using the sigmoid function to map every value to
-            a number between 0 and 1, but we ultimately decided that this was a haphazard solution which may add
-            numerical instability. So in the end we decided to stop using p5.js and just use plain JavaScript in our
-            website. We also had trouble getting the simulation up and running in the first place, so we decided to
-            simplify the problem and see if we could get a simple, unoptimized solution working in Python. After that
+            negative numbers between fragments. WebGL does have extensions to allow full floating point textures, but we
+            couldn’t use these extensions with p5.js. We were able to remedy this by using the sigmoid function to map
+            every value to a number between 0 and 1, but we ultimately decided that this was a haphazard solution which
+            may add numerical instability. In the end we decided to stop using p5.js and just use plain JavaScript in
+            our website.
+        </p>
+        <p>
+            We also had trouble getting the simulation up and running in the first place, so we decided to
+            simplify the problem and see if we could get a simple, CPU-based solution working in Python. After that
             was working, we then used the same logic in our WebGL code.
-
         </p>
     </div>
 
@@ -882,34 +901,53 @@
             split the work more efficiently and allow each person to only focus on one aspect of the project.
 
         </p>
+        <p>
+            We also gained exposure on how to use and debug WebGL shaders. Throughout the project, we ran into many
+            quirks of WebGl, including its initially obtuse state machine and the limitation that shader cannot read and
+            write to the same texture. We also ran into difficulty in debugging our shaders because we could only get
+            color output from them. As a result, we learned how to isolate issues by testing each shader in isolation
+            and by dedicating color channels to display variables of interest.
+        </p>
     </div>
 
     <div>
         <h2 align="middle">References</h2>
-        <a href="https://mofu-dev.com/en/blog/stable-fluids/">
-            Stable Fluids with three.js by Misaki Nakano
-        </a>
-        <br>
-        <a href="https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf">
-            Stable Fluids by Jos Stam
-        </a>
-        <br>
-        <a
-            href="https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu">
-            Fast Fluid Dynamics Simulation on the GPU
-        </a>
+        <p>
+            [1] <a href="https://mofu-dev.com/en/blog/stable-fluids/">
+                Stable Fluids with three.js by Misaki Nakano
+            </a>
+        </p>
+        <p>
+            [2] <a href="https://pages.cs.wisc.edu/~chaol/data/cs777/stam-stable_fluids.pdf">
+                Stable Fluids by Jos Stam
+            </a>
+        </p>
+        <p>
+            [3] <a
+                href="https://developer.nvidia.com/gpugems/gpugems/part-vi-beyond-triangles/chapter-38-fast-fluid-dynamics-simulation-gpu">
+                Fast Fluid Dynamics Simulation on the GPU
+            </a>
+        </p>
+        <p>
+            [4] <a href="https://webglfundamentals.org/">
+                WebGL Fundamentals
+            </a>
+        </p>
     </div>
 
     <div>
         <h2 align="middle">Contributions</h2>
         <p>
-            <b>Andrew:</b> Wrote the Python version of the fluid sim, translated the code to WebGL, made the website UI,
+            <b>Andrew:</b> Wrote the Python version of the fluid sim, translated the code to WebGL, made the
+            website UI,
             co-wrote writeup. Wrote the viscosity shaders.
         </p>
         <p><b>Billy:</b> Wrote the P5.js prototype shaders and the current framework for running WebGL shaders.
-            Implemented the shaders for mouse interaction (external forces), advection, wall boundaries, and color and
+            Implemented the shaders for mouse interaction (external forces), advection, wall boundaries, and
+            color and
             co-wrote the shaders for divergence and pressure.</p>
-        <p><b>Parth:</b> Initial P5.js prototyping, writing some shaders, some UI elements and associated JavaScript
+        <p><b>Parth:</b> Initial P5.js prototyping, writing some shaders, some UI elements and associated
+            JavaScript
             functions.</p>
         <p><b>Tyler:</b> Helped with prototype, co-wrote milestone/final website, presentation</p>
         </p>

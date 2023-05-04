@@ -41,9 +41,9 @@ let prevMousePos = null;
 let paused = false;
 let useViscosity = true;
 
-let imageMode = true;
+let imageMode = false;
 let image;
-let images = ["image.jpg", "image2.jpg", "image3.png", "image4.png"];
+let images = ["image.png", "image2.png", "image3.jpg", "image4.jpg"];
 let imageIndex = 0;
 
 function imageToggle(){

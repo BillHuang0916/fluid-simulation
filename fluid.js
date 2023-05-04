@@ -4,7 +4,7 @@ let diffusionSteps = 5;
 let pressureSteps = 5;
 let mouseEffectRadius = 100;
 let viscosity = 100;
-const wall_size = 10;
+const wall_size = 2;
 
 let canvas = document.querySelector("#fluid_sim");
 let gl = canvas.getContext("webgl");
